@@ -104,22 +104,22 @@ vec<u8> generate(const u8* data, u64 data_size)
 
     BCRYPT_ALG_HANDLE algo_handle = nullptr;
     status = BCryptOpenAlgorithmProvider(
-        &algo_handle,
-        BCRYPT_SHA256_ALGORITHM,
-        nullptr,
-        0
+        &algo_handle,            // [out] BCRYPT_ALG_HANDLE *phAlgorithm,
+        BCRYPT_SHA256_ALGORITHM, // [in] LPCWSTR pszAlgId,
+        nullptr,                 // [in] LPCWSTR pszImplementation,
+        0                        // [in] ULONG dwFlags
     );
 
     ULONG bytes_copied = 0;
 
     DWORD object_size = 0;
     status = BCryptGetProperty(
-        algo_handle,
-        BCRYPT_OBJECT_LENGTH,
-        (PUCHAR)&object_size,
-        sizeof(object_size),
-        &bytes_copied,
-        0
+        algo_handle,          // [in]  BCRYPT_HANDLE hObject,
+        BCRYPT_OBJECT_LENGTH, // [in]  LPCWSTR pszProperty,
+        (PUCHAR)&object_size, // [out] PUCHAR pbOutput,
+        sizeof(object_size),  // [in]  ULONG cbOutput,
+        &bytes_copied,        // [out] ULONG *pcbResult,
+        0                     // [in]  ULONG dwFlags
     );
 
     auto object_buffer = std::make_unique<u8[]>(object_size);
@@ -138,30 +138,29 @@ vec<u8> generate(const u8* data, u64 data_size)
 
     BCRYPT_HASH_HANDLE hash_handle = nullptr;
     status = BCryptCreateHash(
-        algo_handle, // [in, out] BCRYPT_ALG_HANDLE hAlgorithm,
-        &hash_handle, // [out] BCRYPT_HASH_HANDLE *phHash,
+        algo_handle,         // [in, out] BCRYPT_ALG_HANDLE hAlgorithm,
+        &hash_handle,        // [out] BCRYPT_HASH_HANDLE *phHash,
         object_buffer.get(), // [out] PUCHAR pbHashObject,
-        object_size, // [in, optional] ULONG cbHashObject,
-        nullptr, // [in, optional] PUCHAR pbSecret,
-        0, // [in] ULONG cbSecret,
-        0 // [in] ULONG dwFlags
+        object_size,         // [in, optional] ULONG cbHashObject,
+        nullptr,             // [in, optional] PUCHAR pbSecret,
+        0,                   // [in] ULONG cbSecret,
+        0                    // [in] ULONG dwFlags
     );
 
 
     status = BCryptHashData(
-        hash_handle, // [in, out] BCRYPT_HASH_HANDLE hHash,
+        hash_handle,  // [in, out] BCRYPT_HASH_HANDLE hHash,
         (PUCHAR)data, // [in] PUCHAR pbInput,
-        data_size, // [in] ULONG cbInput,
-        0 // [in] ULONG dwFlags
+        data_size,    // [in] ULONG cbInput,
+        0             // [in] ULONG dwFlags
     );
 
     status = BCryptFinishHash(
         hash_handle, // [in, out] BCRYPT_HASH_HANDLE hHash,
         hash.data(), // [out] PUCHAR pbOutput,
         hash.size(), // [in] ULONG cbOutput,
-        0// [in] ULONG dwFlags
+        0            // [in] ULONG dwFlags
     );
-        
     BCryptDestroyHash(hash_handle);
     BCryptCloseAlgorithmProvider(algo_handle, 0);
 
