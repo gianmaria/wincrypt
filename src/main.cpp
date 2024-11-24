@@ -50,6 +50,24 @@ using namespace std::string_view_literals;
 
 namespace SHA256
 {
+
+class Defer
+{
+    std::function<void()> cleanup = nullptr;
+
+public:
+
+    Defer(std::function<void()> func)
+        : cleanup(std::move(func))
+    {
+    }
+
+    ~Defer()
+    {
+        if (cleanup) cleanup();
+    }
+};
+
 const char* ntstatus_to_str(NTSTATUS status)
 {
     switch (status)
