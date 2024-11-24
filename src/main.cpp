@@ -110,6 +110,19 @@ vec<u8> generate(const u8* data, u64 data_size)
         0                        // [in] ULONG dwFlags
     );
 
+    if (status != STATUS_SUCCESS)
+    {
+        std::println("[ERROR] BCryptOpenAlgorithmProvider failed: '{}' code: 0x{:x}",
+                     ntstatus_to_str(status),
+                     (u32)status);
+        return {};
+    }
+
+    auto close_algo = Defer([&]()
+    {
+        BCryptCloseAlgorithmProvider(algo_handle, 0);
+    });
+
     ULONG bytes_copied = 0;
 
     DWORD object_size = 0;
@@ -122,6 +135,14 @@ vec<u8> generate(const u8* data, u64 data_size)
         0                     // [in]  ULONG dwFlags
     );
 
+    if (status != STATUS_SUCCESS)
+    {
+        std::println("[ERROR] BCryptGetProperty for BCRYPT_OBJECT_LENGTH failed: '{}' code: 0x{:x}",
+                     ntstatus_to_str(status),
+                     (u32)status);
+        return {};
+    }
+
     auto object_buffer = std::make_unique<u8[]>(object_size);
 
     DWORD hash_size = 0;
@@ -133,6 +154,14 @@ vec<u8> generate(const u8* data, u64 data_size)
         &bytes_copied,
         0
     );
+
+    if (status != STATUS_SUCCESS)
+    {
+        std::println("[ERROR] BCryptGetProperty for BCRYPT_HASH_LENGTH failed: '{}' code: 0x{:x}",
+                     ntstatus_to_str(status),
+                     (u32)status);
+        return {};
+    }
 
     auto hash = vec<u8>(hash_size);
 
@@ -147,6 +176,18 @@ vec<u8> generate(const u8* data, u64 data_size)
         0                    // [in] ULONG dwFlags
     );
 
+    if (status != STATUS_SUCCESS)
+    {
+        std::println("[ERROR] BCryptCreateHash failed: '{}' code: 0x{:x}",
+                     ntstatus_to_str(status),
+                     (u32)status);
+        return {};
+    }
+
+    auto destry_hash = Defer([&]()
+    {
+        BCryptDestroyHash(hash_handle);
+    });
 
     status = BCryptHashData(
         hash_handle,  // [in, out] BCRYPT_HASH_HANDLE hHash,
@@ -155,14 +196,28 @@ vec<u8> generate(const u8* data, u64 data_size)
         0             // [in] ULONG dwFlags
     );
 
+    if (status != STATUS_SUCCESS)
+    {
+        std::println("[ERROR] BCryptHashData failed: '{}' code: 0x{:x}",
+                     ntstatus_to_str(status),
+                     (u32)status);
+        return {};
+    }
+
     status = BCryptFinishHash(
         hash_handle, // [in, out] BCRYPT_HASH_HANDLE hHash,
         hash.data(), // [out] PUCHAR pbOutput,
         hash.size(), // [in] ULONG cbOutput,
         0            // [in] ULONG dwFlags
     );
-    BCryptDestroyHash(hash_handle);
-    BCryptCloseAlgorithmProvider(algo_handle, 0);
+
+    if (status != STATUS_SUCCESS)
+    {
+        std::println("[ERROR] BCryptFinishHash failed: '{}' code: 0x{:x}",
+                     ntstatus_to_str(status),
+                     (u32)status);
+        return {};
+    }
 
     return hash;
 }
