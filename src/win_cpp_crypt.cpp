@@ -218,8 +218,6 @@ vector<uint8_t> encrypt(const uint8_t* data, uint64_t data_size, const char* pas
     /*
         * BCryptSetProperty -> BCRYPT_CHAINING_MODE
 
-        BCryptCloseAlgorithmProvider
-        BCryptDestroyKey
     */
 
     NTSTATUS status = 0;
@@ -246,6 +244,22 @@ vector<uint8_t> encrypt(const uint8_t* data, uint64_t data_size, const char* pas
     });
 
     ULONG bytes_copied = 0;
+
+    status = BCryptSetProperty(
+        algo_handle,                   // [in, out] BCRYPT_HANDLE hObject,
+        BCRYPT_CHAINING_MODE,          // [in]      LPCWSTR       pszProperty,
+        (PUCHAR)BCRYPT_CHAIN_MODE_CBC,         // [in]      PUCHAR        pbInput,
+        sizeof(BCRYPT_CHAIN_MODE_CBC), // [in]      ULONG         cbInput,
+        0                              // [in]      ULONG         dwFlags
+    );
+
+    if (status != STATUS_SUCCESS)
+    {
+        std::println("[ERROR] BCryptSetProperty for BCRYPT_CHAINING_MODE failed: '{}' code: 0x{:x}",
+                     ntstatus_to_str(status),
+                     static_cast<uint32_t>(status));
+        return {};
+    }
 
     DWORD object_size = 0;
     status = BCryptGetProperty(
