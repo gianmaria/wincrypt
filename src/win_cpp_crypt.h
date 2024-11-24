@@ -13,11 +13,15 @@ using std::vector;
 
 namespace SHA256
 {
-
 vector<uint8_t> generate(const uint8_t* data, uint64_t data_size);
-
 vector<uint8_t> generate(const string& str);
+vector<uint8_t> generate(const char* str);
+}
 
+namespace AES
+{
+vector<uint8_t> encrypt(const uint8_t* data, uint64_t data_size, const char* password);
+vector<uint8_t> encrypt(const string& str, const char* password);
 }
 
 }

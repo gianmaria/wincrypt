@@ -200,6 +200,178 @@ vector<uint8_t> generate(const string& str)
     );
 }
 
+vector<uint8_t> generate(const char* str)
+{
+    return generate(
+        reinterpret_cast<const uint8_t*>(str),
+        std::strlen(str) // TODO: fix for unicode strings
+    );
 }
 
 }
+
+namespace AES
+{
+
+vector<uint8_t> encrypt(const uint8_t* data, uint64_t data_size, const char* password)
+{
+    /*
+        * BCryptSetProperty -> BCRYPT_CHAINING_MODE
+
+        BCryptCloseAlgorithmProvider
+        BCryptDestroyKey
+    */
+
+    NTSTATUS status = 0;
+
+    BCRYPT_ALG_HANDLE algo_handle = nullptr;
+    status = BCryptOpenAlgorithmProvider(
+        &algo_handle,            // [out] BCRYPT_ALG_HANDLE *phAlgorithm,
+        BCRYPT_AES_ALGORITHM,    // [in] LPCWSTR pszAlgId,
+        nullptr,                 // [in] LPCWSTR pszImplementation,
+        0                        // [in] ULONG dwFlags
+    );
+
+    if (status != STATUS_SUCCESS)
+    {
+        std::println("[ERROR] BCryptOpenAlgorithmProvider failed: '{}' code: 0x{:x}",
+                     ntstatus_to_str(status),
+                     static_cast<uint32_t>(status));
+        return {};
+    }
+
+    auto close_algo = Defer([&]()
+    {
+        BCryptCloseAlgorithmProvider(algo_handle, 0);
+    });
+
+    ULONG bytes_copied = 0;
+
+    DWORD object_size = 0;
+    status = BCryptGetProperty(
+        algo_handle,          // [in]  BCRYPT_HANDLE hObject,
+        BCRYPT_OBJECT_LENGTH, // [in]  LPCWSTR pszProperty,
+        reinterpret_cast<PUCHAR>(&object_size), // [out] PUCHAR pbOutput,
+        sizeof(object_size),  // [in]  ULONG cbOutput,
+        &bytes_copied,        // [out] ULONG *pcbResult,
+        0                     // [in]  ULONG dwFlags
+    );
+
+    if (status != STATUS_SUCCESS)
+    {
+        std::println("[ERROR] BCryptGetProperty for BCRYPT_OBJECT_LENGTH failed: '{}' code: 0x{:x}",
+                     ntstatus_to_str(status),
+                     static_cast<uint32_t>(status));
+        return {};
+    }
+
+    auto object_buffer = std::make_unique<uint8_t[]>(object_size);
+
+    DWORD block_size = 0;
+    status = BCryptGetProperty(
+        algo_handle,
+        BCRYPT_BLOCK_LENGTH,
+        reinterpret_cast<PUCHAR>(&block_size),
+        sizeof(block_size),
+        &bytes_copied,
+        0
+    );
+
+    if (status != STATUS_SUCCESS)
+    {
+        std::println("[ERROR] BCryptGetProperty for BCRYPT_BLOCK_LENGTH failed: '{}' code: 0x{:x}",
+                     ntstatus_to_str(status),
+                     static_cast<uint32_t>(status));
+        return {};
+    }
+
+    auto iv = vector<uint8_t>(block_size, 0);
+
+    auto secret = SHA256::generate(password);
+
+    BCRYPT_KEY_HANDLE key_handle = nullptr;
+    status = BCryptGenerateSymmetricKey(
+        algo_handle,         // [in, out] BCRYPT_ALG_HANDLE hAlgorithm,
+        &key_handle,         // [out] BCRYPT_KEY_HANDLE *phKey,
+        object_buffer.get(), // [out, optional] PUCHAR pbKeyObject,
+        object_size,         // [in] ULONG cbKeyObject,
+        secret.data(),       // [in] PUCHAR pbSecret,
+        secret.size(),       // [in] ULONG cbSecret,
+        0                    // [in] ULONG dwFlags
+    );
+
+    if (status != STATUS_SUCCESS)
+    {
+        std::println("[ERROR] BCryptGenerateSymmetricKey failed: '{}' code: 0x{:x}",
+                     ntstatus_to_str(status),
+                     static_cast<uint32_t>(status));
+        return {};
+    }
+
+    auto key_destroyer = Defer([&]()
+    {
+        BCryptDestroyKey(key_handle);
+    });
+
+    ULONG ciphertext_len = 0;
+
+    // calculate ciphertext len first
+    status = BCryptEncrypt(
+        key_handle,          // [in, out] BCRYPT_KEY_HANDLE hKey,
+        (PUCHAR)data,                // [in] PUCHAR pbInput,
+        data_size,           // [in] ULONG cbInput,
+        nullptr,             // [in, optional] VOID *pPaddingInfo,
+        (PUCHAR)iv.data(),   // [in, out, optional] PUCHAR pbIV,
+        iv.size(),           // [in] ULONG cbIV,
+        nullptr,             // [out, optional]      PUCHAR pbOutput,
+        0,                   // [in] ULONG cbOutput,
+        &ciphertext_len,     // [out] ULONG *pcbResult,
+        BCRYPT_BLOCK_PADDING // [in] ULONG dwFlags
+    );
+
+    if (status != STATUS_SUCCESS)
+    {
+        std::println("[ERROR] BCryptEncrypt failed while calculating ciphertext len: '{}' code: 0x{:x}",
+                     ntstatus_to_str(status),
+                     static_cast<uint32_t>(status));
+        return {};
+    }
+
+    auto ciphertext = vector<uint8_t>(ciphertext_len, 0);
+
+    status = BCryptEncrypt(
+        key_handle,          // [in, out] BCRYPT_KEY_HANDLE hKey,
+        (PUCHAR)data,                // [in] PUCHAR pbInput,
+        data_size,           // [in] ULONG cbInput,
+        nullptr,             // [in, optional] VOID *pPaddingInfo,
+        (PUCHAR)iv.data(),   // [in, out, optional] PUCHAR pbIV,
+        iv.size(),           // [in] ULONG cbIV,
+        (PUCHAR)ciphertext.data(), // [out, optional]      PUCHAR pbOutput,
+        ciphertext.size(), // [in] ULONG cbOutput,
+        &bytes_copied,     // [out] ULONG *pcbResult,
+        BCRYPT_BLOCK_PADDING // [in] ULONG dwFlags
+    );
+
+    if (status != STATUS_SUCCESS)
+    {
+        std::println("[ERROR] BCryptEncrypt failed: '{}' code: 0x{:x}",
+                     ntstatus_to_str(status),
+                     static_cast<uint32_t>(status));
+        return {};
+    }
+
+    return ciphertext;
+}
+
+vector<uint8_t> encrypt(const string& str, const char* password)
+{
+    return encrypt(
+        (const uint8_t*)str.data(),
+        str.size(),
+        password
+    );
+}
+
+}
+}
+
