@@ -6,6 +6,7 @@
 #include <Windows.h>
 #include <bcrypt.h>
 #pragma comment(lib, "bcrypt.lib")
+#include <ntstatus.h>
 
 #include <fstream>
 #include <iostream>
@@ -49,6 +50,36 @@ using namespace std::string_view_literals;
 
 namespace SHA256
 {
+const char* ntstatus_to_str(NTSTATUS status)
+{
+    switch (status)
+    {
+        case STATUS_SUCCESS:
+        return "STATUS_SUCCESS";
+
+        case STATUS_NOT_FOUND:
+        return "STATUS_NOT_FOUND";
+
+        case STATUS_INVALID_PARAMETER:
+        return "STATUS_INVALID_PARAMETER";
+
+        case STATUS_NO_MEMORY:
+        return "STATUS_NO_MEMORY";
+
+        case STATUS_BUFFER_TOO_SMALL:
+        return "STATUS_BUFFER_TOO_SMALL";
+
+        case STATUS_INVALID_HANDLE:
+        return "STATUS_INVALID_HANDLE";
+
+        case STATUS_NOT_SUPPORTED:
+        return "STATUS_NOT_SUPPORTED";
+
+        default:
+        return "???";
+    }
+}
+
 vec<u8> generate(const u8* data, u64 data_size)
 {
     NTSTATUS status = 0;
