@@ -46,40 +46,43 @@ int main()
 {
     using namespace WinCppCrypt;
 
-    auto msg = str("😂😂😂😂😂");
-
-    auto hash = SHA256::generate(msg);
-
-    std::print("hash of '{}': ", msg);
-    for (auto d : hash)
     {
-        cout
-            << std::setw(2)
-            << std::setfill('0')
-            << std::hex
-            << std::nouppercase
-            << static_cast<u32>(d);
-    }
-    cout << endl;
+        auto msg = str("😂😂😂😂😂");
 
-    
-    
-    
-    
-    
-    msg = "1234567890123456";
-    auto cypher = AES::encrypt(msg, "password");
-    std::print("encryption of '{}': ", msg);
-    for (auto d : cypher)
-    {
-        cout
-            << std::setw(2)
-            << std::setfill('0')
-            << std::hex
-            << std::nouppercase
-            << static_cast<u32>(d);
+        auto hash = SHA256::generate(msg);
+
+        std::print("hash of '{}': ", msg);
+        for (auto d : hash)
+        {
+            cout
+                << std::setw(2)
+                << std::setfill('0')
+                << std::hex
+                << std::nouppercase
+                << static_cast<u32>(d);
+        }
+        cout << endl;
     }
-    cout << endl;
+    
+    
+    {
+        auto plaintext = str("hello world");
+
+        auto cyphertext = AES::encrypt(plaintext, "password");
+
+        std::print("encryption of '{}': ", plaintext);
+
+        for (auto d : cyphertext)
+        {
+            cout
+                << std::setw(2)
+                << std::setfill('0')
+                << std::hex
+                << std::nouppercase
+                << static_cast<u32>(d);
+        }
+        cout << endl;
+    }
 
     return 0;
 }
