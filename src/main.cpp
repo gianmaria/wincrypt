@@ -225,7 +225,7 @@ vec<u8> generate(const u8* data, u64 data_size)
 vec<u8> generate(str_cref str)
 {
     return generate(
-        reinterpret_cast<const u8*>(str.data()), 
+        reinterpret_cast<const u8*>(str.data()),
         str.length()
     );
 }
@@ -234,19 +234,19 @@ vec<u8> generate(str_cref str)
 
 int main(int argc, char* argv[])
 {
-    auto msg = str("hello world");
+    auto msg = str("😂😂😂😂😂");
 
     auto hash = SHA256::generate(msg);
 
+    std::print("hash of '{}': ", msg);
     for (auto d : hash)
     {
-        cout 
-            << std::setw(2) 
-            << std::setfill('0') 
-            << std::hex 
-            << std::nouppercase 
+        cout
+            << std::setw(2)
+            << std::setfill('0')
+            << std::hex
+            << std::nouppercase
             << static_cast<u32>(d);
-
     }
     cout << endl;
 
