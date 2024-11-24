@@ -42,6 +42,8 @@ using namespace std::string_view_literals;
 
 #include "win_cpp_crypt.h"
 
+// https://emn178.github.io/online-tools/sha256.html
+
 int main()
 {
     using namespace WinCppCrypt;
