@@ -62,5 +62,24 @@ int main()
     }
     cout << endl;
 
+    
+    
+    
+    
+    
+    msg = "1234567890123456";
+    auto cypher = AES::encrypt(msg, "password");
+    std::print("encryption of '{}': ", msg);
+    for (auto d : cypher)
+    {
+        cout
+            << std::setw(2)
+            << std::setfill('0')
+            << std::hex
+            << std::nouppercase
+            << static_cast<u32>(d);
+    }
+    cout << endl;
+
     return 0;
 }
