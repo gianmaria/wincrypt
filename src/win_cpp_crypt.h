@@ -13,8 +13,8 @@ using std::string;
 using std::string_view;
 using std::vector;
 
-string to_base64(const uint8_t* data, uint64_t data_size);
-string to_base64(string_view input);
+string base64_encode(const uint8_t* data, uint64_t data_size);
+string base64_encode(string_view input);
 
 vector<uint8_t> random_bytes(uint32_t count);
 

@@ -77,7 +77,7 @@ const char* ntstatus_to_str(NTSTATUS status)
 }
 
 
-string to_base64(const uint8_t* data, uint64_t data_size)
+string base64_encode(const uint8_t* data, uint64_t data_size)
 {
     BOOL result = FALSE;
 
@@ -115,9 +115,9 @@ string to_base64(const uint8_t* data, uint64_t data_size)
     return base64;
 }
 
-string to_base64(string_view input)
+string base64_encode(string_view input)
 {
-    return to_base64(
+    return base64_encode(
         reinterpret_cast<const uint8_t*>(input.data()),
         input.size()
     );
