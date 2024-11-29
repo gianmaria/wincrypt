@@ -501,8 +501,6 @@ vector<uint8_t> decrypt(const uint8_t* ciphertext, uint64_t ciphertext_size,
         BCryptCloseAlgorithmProvider(algo_handle, 0);
     });
 
-    ULONG bytes_copied = 0;
-
     status = BCryptSetProperty(
         algo_handle,                   // [in, out] BCRYPT_HANDLE hObject,
         BCRYPT_CHAINING_MODE,          // [in]      LPCWSTR       pszProperty,
@@ -519,6 +517,7 @@ vector<uint8_t> decrypt(const uint8_t* ciphertext, uint64_t ciphertext_size,
         return {};
     }
 
+    ULONG bytes_copied = 0;
     DWORD object_size = 0;
     status = BCryptGetProperty(
         algo_handle,          // [in]  BCRYPT_HANDLE hObject,
