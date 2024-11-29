@@ -105,6 +105,15 @@ const char* ntstatus_to_str(NTSTATUS status)
         case STATUS_NOT_SUPPORTED:
         return "STATUS_NOT_SUPPORTED";
 
+        case STATUS_AUTH_TAG_MISMATCH:
+        return "STATUS_AUTH_TAG_MISMATCH";
+
+        case STATUS_INVALID_BUFFER_SIZE:
+        return "STATUS_INVALID_BUFFER_SIZE";
+
+        case STATUS_DATA_ERROR:
+        return "STATUS_DATA_ERROR";
+
         default:
         return "???";
     }
