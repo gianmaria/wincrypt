@@ -37,6 +37,46 @@ public:
     }
 };
 
+const char* ntstatus_to_str(NTSTATUS status)
+{
+    switch (status)
+    {
+        case STATUS_SUCCESS:
+        return "STATUS_SUCCESS";
+
+        case STATUS_NOT_FOUND:
+        return "STATUS_NOT_FOUND";
+
+        case STATUS_INVALID_PARAMETER:
+        return "STATUS_INVALID_PARAMETER";
+
+        case STATUS_NO_MEMORY:
+        return "STATUS_NO_MEMORY";
+
+        case STATUS_BUFFER_TOO_SMALL:
+        return "STATUS_BUFFER_TOO_SMALL";
+
+        case STATUS_INVALID_HANDLE:
+        return "STATUS_INVALID_HANDLE";
+
+        case STATUS_NOT_SUPPORTED:
+        return "STATUS_NOT_SUPPORTED";
+
+        case STATUS_AUTH_TAG_MISMATCH:
+        return "STATUS_AUTH_TAG_MISMATCH";
+
+        case STATUS_INVALID_BUFFER_SIZE:
+        return "STATUS_INVALID_BUFFER_SIZE";
+
+        case STATUS_DATA_ERROR:
+        return "STATUS_DATA_ERROR";
+
+        default:
+        return "???";
+    }
+}
+
+
 string to_base64(const uint8_t* data, uint64_t data_size)
 {
     BOOL result = FALSE;
@@ -82,43 +122,47 @@ string to_base64(string_view input)
         input.size()
     );
 }
-const char* ntstatus_to_str(NTSTATUS status)
+
+vector<uint8_t> random_bytes(uint32_t count)
 {
-    switch (status)
+    NTSTATUS status = 0;
+
+    BCRYPT_ALG_HANDLE algo_handle = nullptr;
+    status = BCryptOpenAlgorithmProvider(
+        &algo_handle,            // [out] BCRYPT_ALG_HANDLE *phAlgorithm,
+        BCRYPT_RNG_ALGORITHM,    // [in] LPCWSTR pszAlgId,
+        nullptr,                 // [in] LPCWSTR pszImplementation,
+        0                        // [in] ULONG dwFlags
+    );
+
+    if (status != STATUS_SUCCESS)
     {
-        case STATUS_SUCCESS:
-        return "STATUS_SUCCESS";
-
-        case STATUS_NOT_FOUND:
-        return "STATUS_NOT_FOUND";
-
-        case STATUS_INVALID_PARAMETER:
-        return "STATUS_INVALID_PARAMETER";
-
-        case STATUS_NO_MEMORY:
-        return "STATUS_NO_MEMORY";
-
-        case STATUS_BUFFER_TOO_SMALL:
-        return "STATUS_BUFFER_TOO_SMALL";
-
-        case STATUS_INVALID_HANDLE:
-        return "STATUS_INVALID_HANDLE";
-
-        case STATUS_NOT_SUPPORTED:
-        return "STATUS_NOT_SUPPORTED";
-
-        case STATUS_AUTH_TAG_MISMATCH:
-        return "STATUS_AUTH_TAG_MISMATCH";
-
-        case STATUS_INVALID_BUFFER_SIZE:
-        return "STATUS_INVALID_BUFFER_SIZE";
-
-        case STATUS_DATA_ERROR:
-        return "STATUS_DATA_ERROR";
-
-        default:
-        return "???";
+        std::println("[ERROR] BCryptOpenAlgorithmProvider failed: '{}' code: 0x{:x}",
+                     ntstatus_to_str(status),
+                     static_cast<uint32_t>(status));
+        return {};
     }
+
+    auto random_data = vector<uint8_t>(count, 0);
+
+    status = BCryptGenRandom(
+        algo_handle, // [in, out] BCRYPT_ALG_HANDLE hAlgorithm,
+        
+        random_data.data(), // [in, out] PUCHAR            pbBuffer,
+        random_data.size(), // [in]      ULONG             cbBuffer,
+        
+        0      // [in]      ULONG             dwFlags
+    );
+
+    if (status != STATUS_SUCCESS)
+    {
+        std::println("[ERROR] BCryptGenRandom failed: '{}' code: 0x{:x}",
+                     ntstatus_to_str(status),
+                     static_cast<uint32_t>(status));
+        return {};
+    }
+
+    return random_data;
 }
 
 namespace SHA256

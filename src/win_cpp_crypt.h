@@ -16,6 +16,8 @@ using std::vector;
 string to_base64(const uint8_t* data, uint64_t data_size);
 string to_base64(string_view input);
 
+vector<uint8_t> random_bytes(uint32_t count);
+
 namespace SHA256
 {
 vector<uint8_t> generate(const uint8_t* data, uint64_t data_size);
