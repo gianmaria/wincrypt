@@ -88,7 +88,7 @@ int main()
             auto ciphertext = AES::encrypt(file_data.data(), file_data.size(), "Passw0rd");
 
             // decrypt file
-            auto plaintext = AES::decrypt(file_data.data(), file_data.size(), "Passw0rd");
+            auto plaintext = AES::decrypt(ciphertext.data(), ciphertext.size(), "Passw0rd");
                         
             // calculate again sha256 of decrypted file
             auto hash_decrypted = SHA256::generate(plaintext.data(), plaintext.size());
