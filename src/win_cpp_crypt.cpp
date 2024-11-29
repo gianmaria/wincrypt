@@ -35,6 +35,51 @@ public:
     }
 };
 
+string to_base64(const uint8_t* data, uint64_t data_size)
+{
+    BOOL result = FALSE;
+
+    DWORD output_size = 0;
+    result = CryptBinaryToStringA(
+        data,      // [in]            const BYTE * pbBinary,
+        data_size, // [in]            DWORD      cbBinary,
+         
+        CRYPT_STRING_BASE64 | // [in]            DWORD      dwFlags, 
+        CRYPT_STRING_NOCRLF, 
+         
+        nullptr, // [out, optional] LPSTR      pszString,
+        &output_size// [in, out]       DWORD * pcchString
+    );
+
+    if (result == FALSE)
+    {
+        std::println("[ERROR] CryptBinaryToStringA failed");
+        return {};
+    }
+
+    auto base64 = string(output_size-1, 0);
+
+    result = CryptBinaryToStringA(
+        data,      // [in]            const BYTE * pbBinary,
+        data_size, // [in]            DWORD      cbBinary,
+
+        CRYPT_STRING_BASE64 | // [in]            DWORD      dwFlags, 
+        CRYPT_STRING_NOCRLF, 
+
+        base64.data(), // [out, optional] LPSTR      pszString,
+        &output_size// [in, out]       DWORD * pcchString
+    );
+
+    return base64;
+}
+
+string to_base64(string_view input)
+{
+    return to_base64(
+        reinterpret_cast<const uint8_t*>(input.data()),
+        input.size()
+    );
+}
 const char* ntstatus_to_str(NTSTATUS status)
 {
     switch (status)
