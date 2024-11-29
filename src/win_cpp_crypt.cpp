@@ -8,6 +8,8 @@
 #include <bcrypt.h>
 #pragma comment(lib, "bcrypt.lib")
 #include <ntstatus.h>
+#include <wincrypt.h>
+#pragma comment(lib, "Crypt32.lib")
 
 #include <memory>
 #include <print>
