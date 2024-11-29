@@ -192,7 +192,7 @@ vector<uint8_t> generate(const uint8_t* data, uint64_t data_size)
     return hash;
 }
 
-vector<uint8_t> generate(const string& str)
+vector<uint8_t> generate(string_view str)
 {
     return generate(
         reinterpret_cast<const uint8_t*>(str.data()),
@@ -213,7 +213,8 @@ vector<uint8_t> generate(const char* str)
 namespace AES
 {
 
-vector<uint8_t> encrypt(const uint8_t* data, uint64_t data_size, const char* password)
+vector<uint8_t> encrypt(const uint8_t* plaintext, uint64_t plaintext_size, 
+                        string_view password)
 {
     NTSTATUS status = 0;
 
@@ -327,8 +328,8 @@ vector<uint8_t> encrypt(const uint8_t* data, uint64_t data_size, const char* pas
     // calculate ciphertext len first
     status = BCryptEncrypt(
         key_handle,          // [in, out] BCRYPT_KEY_HANDLE hKey,
-        (PUCHAR)data,        // [in] PUCHAR pbInput,
-        data_size,           // [in] ULONG cbInput,
+        (PUCHAR)plaintext,        // [in] PUCHAR pbInput,
+        plaintext_size,           // [in] ULONG cbInput,
         nullptr,             // [in, optional] VOID *pPaddingInfo,
         (PUCHAR)iv.data(),   // [in, out, optional] PUCHAR pbIV,
         iv.size(),           // [in] ULONG cbIV,
@@ -350,8 +351,8 @@ vector<uint8_t> encrypt(const uint8_t* data, uint64_t data_size, const char* pas
 
     status = BCryptEncrypt(
         key_handle,          // [in, out] BCRYPT_KEY_HANDLE hKey,
-        (PUCHAR)data,        // [in] PUCHAR pbInput,
-        data_size,           // [in] ULONG cbInput,
+        (PUCHAR)plaintext,        // [in] PUCHAR pbInput,
+        plaintext_size,           // [in] ULONG cbInput,
         nullptr,             // [in, optional] VOID *pPaddingInfo,
         (PUCHAR)iv.data(),   // [in, out, optional] PUCHAR pbIV,
         iv.size(),           // [in] ULONG cbIV,
@@ -372,16 +373,18 @@ vector<uint8_t> encrypt(const uint8_t* data, uint64_t data_size, const char* pas
     return ciphertext;
 }
 
-vector<uint8_t> encrypt(const string& str, const char* password)
+vector<uint8_t> encrypt(string_view plaintext, string_view password)
 {
     return encrypt(
-        (const uint8_t*)str.data(),
-        str.size(),
+        (const uint8_t*)plaintext.data(),
+        plaintext.size(),
         password
     );
 }
 
-vector<uint8_t> decrypt(const uint8_t* ciphertext, uint64_t ciphertext_size, const char* password)
+
+vector<uint8_t> decrypt(const uint8_t* ciphertext, uint64_t ciphertext_size, 
+                        string_view password)
 {
     NTSTATUS status = 0;
 
