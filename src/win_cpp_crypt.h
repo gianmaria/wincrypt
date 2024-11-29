@@ -21,10 +21,12 @@ vector<uint8_t> generate(string_view str);
 
 namespace AES
 {
-vector<uint8_t> encrypt(const uint8_t* plaintext, uint64_t plaintext_size, string_view password);
+vector<uint8_t> encrypt(const uint8_t* plaintext, uint64_t plaintext_size, 
+                        string_view password);
 vector<uint8_t> encrypt(string_view plaintext, string_view password);
 
-vector<uint8_t> decrypt(const uint8_t* ciphertext, uint64_t ciphertext_size, string_view password);
+vector<uint8_t> decrypt(const uint8_t* ciphertext, uint64_t ciphertext_size, 
+                        string_view password);
 vector<uint8_t> decrypt(string_view ciphertext, string_view password);
 }
 

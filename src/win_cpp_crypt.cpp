@@ -200,14 +200,6 @@ vector<uint8_t> generate(string_view str)
     );
 }
 
-vector<uint8_t> generate(const char* str)
-{
-    return generate(
-        reinterpret_cast<const uint8_t*>(str),
-        std::strlen(str) // TODO: fix for unicode strings
-    );
-}
-
 }
 
 namespace AES
@@ -376,7 +368,7 @@ vector<uint8_t> encrypt(const uint8_t* plaintext, uint64_t plaintext_size,
 vector<uint8_t> encrypt(string_view plaintext, string_view password)
 {
     return encrypt(
-        (const uint8_t*)plaintext.data(),
+        reinterpret_cast<const uint8_t*>(plaintext.data()),
         plaintext.size(),
         password
     );
@@ -541,6 +533,15 @@ vector<uint8_t> decrypt(const uint8_t* ciphertext, uint64_t ciphertext_size,
     }
 
     return plaintext;
+}
+
+vector<uint8_t> decrypt(string_view ciphertext, string_view password)
+{
+    return decrypt(
+        reinterpret_cast<const uint8_t*>(ciphertext.data()),
+        ciphertext.size(),
+        password
+    ); 
 }
 
 }
