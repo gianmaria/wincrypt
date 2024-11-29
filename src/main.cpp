@@ -11,6 +11,7 @@
 #include <cwchar>
 #include <stdexcept>
 #include <iomanip>
+#include <filesystem>
 
 using u8 = uint8_t;
 using u16 = uint16_t;
@@ -40,18 +41,21 @@ using vec = vector<T>;
 using namespace std::string_literals;
 using namespace std::string_view_literals;
 
+namespace fs = std::filesystem;
+
 #include "win_cpp_crypt.h"
 
 // https://emn178.github.io/online-tools/sha256.html
 
 
 
-std::vector<unsigned char> read_file_to_vector(const std::string& file_path)
+std::vector<unsigned char> read_file_to_vector(string_view file_path)
 {
+    fs::path p1 = file_path;
     // Open file in binary mode
-    std::ifstream file(file_path, std::ios::binary);
+    std::ifstream file(p1, std::ios::binary);
     if (!file) {
-        throw std::runtime_error("Failed to open file: " + file_path);
+        throw std::runtime_error("Failed to open file: ");
     }
 
     // Move the file pointer to the end to get the size
@@ -62,10 +66,34 @@ std::vector<unsigned char> read_file_to_vector(const std::string& file_path)
     // Read the file contents into a vector
     std::vector<unsigned char> buffer(size);
     if (!file.read(reinterpret_cast<char*>(buffer.data()), size)) {
-        throw std::runtime_error("Failed to read file: " + file_path);
+        throw std::runtime_error("Failed to read file: ");
     }
 
     return buffer;
+}
+
+bool test_aes(string_view file_path)
+{
+    using namespace WinCppCrypt;
+
+    auto file_data = read_file_to_vector(file_path);
+
+    // calculate sha256 file
+    auto hash_original = SHA256::generate(file_data.data(), file_data.size());
+
+    // encrypt file
+    auto ciphertext = AES::encrypt(file_data.data(), file_data.size(), "Passw0rd");
+
+    // decrypt file
+    auto plaintext = AES::decrypt(ciphertext.data(), ciphertext.size(), "Passw0rd");
+
+    // calculate again sha256 of decrypted file
+    auto hash_decrypted = SHA256::generate(plaintext.data(), plaintext.size());
+
+    auto b1 = base64_encode(hash_original.data(), hash_original.size());
+    auto b2 = base64_encode(hash_decrypted.data(), hash_decrypted.size());
+
+    return b1 == b2;
 }
 
 int main()
@@ -75,37 +103,16 @@ int main()
         using namespace WinCppCrypt;
 
         {
-            // read file
-            auto file_path = "data.bin";
+            string_view files[] = {
+                "big_data_01.bin",
+                "big_data_02.mp4",
+                "big_data_03.pdf",
+            };
 
-            auto file_data = read_file_to_vector(file_path);
-            std::cout << "File read successfully. Size: " << file_data.size() << " bytes." << std::endl;
-
-            // calculate sha256 file
-            auto hash_original = SHA256::generate(file_data.data(), file_data.size());
-            
-            // encrypt file
-            auto ciphertext = AES::encrypt(file_data.data(), file_data.size(), "Passw0rd");
-
-            // decrypt file
-            auto plaintext = AES::decrypt(ciphertext.data(), ciphertext.size(), "Passw0rd");
-                        
-            // calculate again sha256 of decrypted file
-            auto hash_decrypted = SHA256::generate(plaintext.data(), plaintext.size());
-
-            auto b64_1 = base64_encode(hash_original.data(), hash_original.size());
-            auto b64_2 = base64_encode(hash_decrypted.data(), hash_decrypted.size());
-
-            std::println("original:  {}", b64_1);
-            std::println("decrypted: {}", b64_2);
-
-            if (b64_1 != b64_2)
+            for (auto file : files)
             {
-                std::println("error!! hashes does not matches");
-            }
-            else
-            {
-                std::println("all good");
+                std::println("testing encrypt/decrypt of file: {} res: {}",
+                             file, test_aes(file) ? "success" : "fail!!");
             }
 
         }

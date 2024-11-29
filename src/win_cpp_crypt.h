@@ -8,7 +8,7 @@
 
 /*
 * TODO: 
-*   [] test AES::encrypt and AES::decrypt
+*   [X] test AES::encrypt and AES::decrypt
 *   [] add non zero IV
 *   [] salt password
 */
