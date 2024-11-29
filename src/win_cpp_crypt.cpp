@@ -215,11 +215,6 @@ namespace AES
 
 vector<uint8_t> encrypt(const uint8_t* data, uint64_t data_size, const char* password)
 {
-    /*
-        * BCryptSetProperty -> BCRYPT_CHAINING_MODE
-
-    */
-
     NTSTATUS status = 0;
 
     BCRYPT_ALG_HANDLE algo_handle = nullptr;
@@ -248,7 +243,7 @@ vector<uint8_t> encrypt(const uint8_t* data, uint64_t data_size, const char* pas
     status = BCryptSetProperty(
         algo_handle,                   // [in, out] BCRYPT_HANDLE hObject,
         BCRYPT_CHAINING_MODE,          // [in]      LPCWSTR       pszProperty,
-        (PUCHAR)BCRYPT_CHAIN_MODE_CBC,         // [in]      PUCHAR        pbInput,
+        (PUCHAR)BCRYPT_CHAIN_MODE_CBC, // [in]      PUCHAR        pbInput,
         sizeof(BCRYPT_CHAIN_MODE_CBC), // [in]      ULONG         cbInput,
         0                              // [in]      ULONG         dwFlags
     );
@@ -332,7 +327,7 @@ vector<uint8_t> encrypt(const uint8_t* data, uint64_t data_size, const char* pas
     // calculate ciphertext len first
     status = BCryptEncrypt(
         key_handle,          // [in, out] BCRYPT_KEY_HANDLE hKey,
-        (PUCHAR)data,                // [in] PUCHAR pbInput,
+        (PUCHAR)data,        // [in] PUCHAR pbInput,
         data_size,           // [in] ULONG cbInput,
         nullptr,             // [in, optional] VOID *pPaddingInfo,
         (PUCHAR)iv.data(),   // [in, out, optional] PUCHAR pbIV,
@@ -355,14 +350,14 @@ vector<uint8_t> encrypt(const uint8_t* data, uint64_t data_size, const char* pas
 
     status = BCryptEncrypt(
         key_handle,          // [in, out] BCRYPT_KEY_HANDLE hKey,
-        (PUCHAR)data,                // [in] PUCHAR pbInput,
+        (PUCHAR)data,        // [in] PUCHAR pbInput,
         data_size,           // [in] ULONG cbInput,
         nullptr,             // [in, optional] VOID *pPaddingInfo,
         (PUCHAR)iv.data(),   // [in, out, optional] PUCHAR pbIV,
         iv.size(),           // [in] ULONG cbIV,
         (PUCHAR)ciphertext.data(), // [out, optional]      PUCHAR pbOutput,
-        ciphertext.size(), // [in] ULONG cbOutput,
-        &bytes_copied,     // [out] ULONG *pcbResult,
+        ciphertext.size(),   // [in] ULONG cbOutput,
+        &bytes_copied,       // [out] ULONG *pcbResult,
         BCRYPT_BLOCK_PADDING // [in] ULONG dwFlags
     );
 
