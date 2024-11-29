@@ -381,6 +381,165 @@ vector<uint8_t> encrypt(const string& str, const char* password)
     );
 }
 
+vector<uint8_t> decrypt(const uint8_t* ciphertext, uint64_t ciphertext_size, const char* password)
+{
+    NTSTATUS status = 0;
+
+    BCRYPT_ALG_HANDLE algo_handle = nullptr;
+    status = BCryptOpenAlgorithmProvider(
+        &algo_handle,            // [out] BCRYPT_ALG_HANDLE *phAlgorithm,
+        BCRYPT_AES_ALGORITHM,    // [in] LPCWSTR pszAlgId,
+        nullptr,                 // [in] LPCWSTR pszImplementation,
+        0                        // [in] ULONG dwFlags
+    );
+
+    if (status != STATUS_SUCCESS)
+    {
+        std::println("[ERROR] BCryptOpenAlgorithmProvider failed: '{}' code: 0x{:x}",
+                     ntstatus_to_str(status),
+                     static_cast<uint32_t>(status));
+        return {};
+    }
+
+    auto close_algo = Defer([&]()
+    {
+        BCryptCloseAlgorithmProvider(algo_handle, 0);
+    });
+
+    ULONG bytes_copied = 0;
+
+    status = BCryptSetProperty(
+        algo_handle,                   // [in, out] BCRYPT_HANDLE hObject,
+        BCRYPT_CHAINING_MODE,          // [in]      LPCWSTR       pszProperty,
+        (PUCHAR)BCRYPT_CHAIN_MODE_CBC, // [in]      PUCHAR        pbInput,
+        sizeof(BCRYPT_CHAIN_MODE_CBC), // [in]      ULONG         cbInput,
+        0                              // [in]      ULONG         dwFlags
+    );
+
+    if (status != STATUS_SUCCESS)
+    {
+        std::println("[ERROR] BCryptSetProperty for BCRYPT_CHAINING_MODE failed: '{}' code: 0x{:x}",
+                     ntstatus_to_str(status),
+                     static_cast<uint32_t>(status));
+        return {};
+    }
+
+    DWORD object_size = 0;
+    status = BCryptGetProperty(
+        algo_handle,          // [in]  BCRYPT_HANDLE hObject,
+        BCRYPT_OBJECT_LENGTH, // [in]  LPCWSTR pszProperty,
+        reinterpret_cast<PUCHAR>(&object_size), // [out] PUCHAR pbOutput,
+        sizeof(object_size),  // [in]  ULONG cbOutput,
+        &bytes_copied,        // [out] ULONG *pcbResult,
+        0                     // [in]  ULONG dwFlags
+    );
+
+    if (status != STATUS_SUCCESS)
+    {
+        std::println("[ERROR] BCryptGetProperty for BCRYPT_OBJECT_LENGTH failed: '{}' code: 0x{:x}",
+                     ntstatus_to_str(status),
+                     static_cast<uint32_t>(status));
+        return {};
+    }
+
+    auto object_buffer = std::make_unique<uint8_t[]>(object_size);
+
+    DWORD block_size = 0;
+    status = BCryptGetProperty(
+        algo_handle,
+        BCRYPT_BLOCK_LENGTH,
+        reinterpret_cast<PUCHAR>(&block_size),
+        sizeof(block_size),
+        &bytes_copied,
+        0
+    );
+
+    if (status != STATUS_SUCCESS)
+    {
+        std::println("[ERROR] BCryptGetProperty for BCRYPT_BLOCK_LENGTH failed: '{}' code: 0x{:x}",
+                     ntstatus_to_str(status),
+                     static_cast<uint32_t>(status));
+        return {};
+    }
+
+    auto iv = vector<uint8_t>(block_size, 0);
+
+    auto secret = SHA256::generate(password);
+
+    BCRYPT_KEY_HANDLE key_handle = nullptr;
+    status = BCryptGenerateSymmetricKey(
+        algo_handle,         // [in, out] BCRYPT_ALG_HANDLE hAlgorithm,
+        &key_handle,         // [out] BCRYPT_KEY_HANDLE *phKey,
+        object_buffer.get(), // [out, optional] PUCHAR pbKeyObject,
+        object_size,         // [in] ULONG cbKeyObject,
+        secret.data(),       // [in] PUCHAR pbSecret,
+        secret.size(),       // [in] ULONG cbSecret,
+        0                    // [in] ULONG dwFlags
+    );
+
+    if (status != STATUS_SUCCESS)
+    {
+        std::println("[ERROR] BCryptGenerateSymmetricKey failed: '{}' code: 0x{:x}",
+                     ntstatus_to_str(status),
+                     static_cast<uint32_t>(status));
+        return {};
+    }
+
+    auto key_destroyer = Defer([&]()
+    {
+        BCryptDestroyKey(key_handle);
+    });
+
+    ULONG plaintext_len = 0;
+
+    // calculate plaintext len first
+    status = BCryptDecrypt(
+        key_handle,          // [in, out] BCRYPT_KEY_HANDLE hKey,
+        (PUCHAR)ciphertext,        // [in] PUCHAR pbInput,
+        ciphertext_size,           // [in] ULONG cbInput,
+        nullptr,             // [in, optional] VOID *pPaddingInfo,
+        (PUCHAR)iv.data(),   // [in, out, optional] PUCHAR pbIV,
+        iv.size(),           // [in] ULONG cbIV,
+        nullptr,             // [out, optional]      PUCHAR pbOutput,
+        0,                   // [in] ULONG cbOutput,
+        &plaintext_len,     // [out] ULONG *pcbResult,
+        BCRYPT_BLOCK_PADDING // [in] ULONG dwFlags
+    );
+
+    if (status != STATUS_SUCCESS)
+    {
+        std::println("[ERROR] BCryptDecrypt failed while calculating plaintext len: '{}' code: 0x{:x}",
+                     ntstatus_to_str(status),
+                     static_cast<uint32_t>(status));
+        return {};
+    }
+
+    auto plaintext = vector<uint8_t>(plaintext_len, 0);
+
+    status = BCryptDecrypt(
+        key_handle,          // [in, out] BCRYPT_KEY_HANDLE hKey,
+        (PUCHAR)ciphertext,        // [in] PUCHAR pbInput,
+        ciphertext_size,           // [in] ULONG cbInput,
+        nullptr,             // [in, optional] VOID *pPaddingInfo,
+        (PUCHAR)iv.data(),   // [in, out, optional] PUCHAR pbIV,
+        iv.size(),           // [in] ULONG cbIV,
+        (PUCHAR)plaintext.data(), // [out, optional]      PUCHAR pbOutput,
+        plaintext.size(),   // [in] ULONG cbOutput,
+        &bytes_copied,       // [out] ULONG *pcbResult,
+        BCRYPT_BLOCK_PADDING // [in] ULONG dwFlags
+    );
+
+    if (status != STATUS_SUCCESS)
+    {
+        std::println("[ERROR] BCryptDecrypt failed: '{}' code: 0x{:x}",
+                     ntstatus_to_str(status),
+                     static_cast<uint32_t>(status));
+        return {};
+    }
+
+    return plaintext;
+}
+
 }
 }
 

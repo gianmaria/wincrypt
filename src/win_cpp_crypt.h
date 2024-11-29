@@ -22,6 +22,8 @@ namespace AES
 {
 vector<uint8_t> encrypt(const uint8_t* data, uint64_t data_size, const char* password);
 vector<uint8_t> encrypt(const string& str, const char* password);
+
+vector<uint8_t> decrypt(const uint8_t* ciphertext, uint64_t ciphertext_size, const char* password);
 }
 
 }
