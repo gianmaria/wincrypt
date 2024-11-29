@@ -6,6 +6,13 @@
 #include <vector>
 #include <cstdint>
 
+/*
+* TODO: 
+*   [] test AES::encrypt and AES::decrypt
+*   [] add non zero IV
+*   [] salt password
+*/
+
 namespace WinCppCrypt
 {
 
