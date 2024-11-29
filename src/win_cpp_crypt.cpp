@@ -463,8 +463,6 @@ vector<uint8_t> encrypt(const uint8_t* plaintext, uint64_t plaintext_size,
         return {};
     }
 
-    ciphertext.resize(encrypted_size);
-
     return ciphertext;
 }
 
