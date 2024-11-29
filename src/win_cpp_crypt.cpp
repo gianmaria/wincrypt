@@ -254,7 +254,7 @@ vector<uint8_t> generate(const uint8_t* data, uint64_t data_size)
         return {};
     }
 
-    auto destry_hash = Defer([&]()
+    auto destroy_hash = Defer([&]()
     {
         BCryptDestroyHash(hash_handle);
     });
