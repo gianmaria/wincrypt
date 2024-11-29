@@ -441,6 +441,7 @@ vector<uint8_t> encrypt(const uint8_t* plaintext, uint64_t plaintext_size,
 
     auto ciphertext = vector<uint8_t>(ciphertext_len, 0);
 
+    ULONG encrypted_size = 0;
     status = BCryptEncrypt(
         key_handle,          // [in, out] BCRYPT_KEY_HANDLE hKey,
         (PUCHAR)plaintext,        // [in] PUCHAR pbInput,
@@ -450,7 +451,7 @@ vector<uint8_t> encrypt(const uint8_t* plaintext, uint64_t plaintext_size,
         iv.size(),           // [in] ULONG cbIV,
         (PUCHAR)ciphertext.data(), // [out, optional]      PUCHAR pbOutput,
         ciphertext.size(),   // [in] ULONG cbOutput,
-        &bytes_copied,       // [out] ULONG *pcbResult,
+        &encrypted_size,       // [out] ULONG *pcbResult,
         BCRYPT_BLOCK_PADDING // [in] ULONG dwFlags
     );
 
@@ -461,6 +462,8 @@ vector<uint8_t> encrypt(const uint8_t* plaintext, uint64_t plaintext_size,
                      static_cast<uint32_t>(status));
         return {};
     }
+
+    ciphertext.resize(encrypted_size);
 
     return ciphertext;
 }
@@ -610,6 +613,7 @@ vector<uint8_t> decrypt(const uint8_t* ciphertext, uint64_t ciphertext_size,
 
     auto plaintext = vector<uint8_t>(plaintext_len, 0);
 
+    ULONG decrypted_size = 0;
     status = BCryptDecrypt(
         key_handle,          // [in, out] BCRYPT_KEY_HANDLE hKey,
         (PUCHAR)ciphertext,        // [in] PUCHAR pbInput,
@@ -619,7 +623,7 @@ vector<uint8_t> decrypt(const uint8_t* ciphertext, uint64_t ciphertext_size,
         iv.size(),           // [in] ULONG cbIV,
         (PUCHAR)plaintext.data(), // [out, optional]      PUCHAR pbOutput,
         plaintext.size(),   // [in] ULONG cbOutput,
-        &bytes_copied,       // [out] ULONG *pcbResult,
+        &decrypted_size,    // [out] ULONG *pcbResult,
         BCRYPT_BLOCK_PADDING // [in] ULONG dwFlags
     );
 
@@ -630,6 +634,8 @@ vector<uint8_t> decrypt(const uint8_t* ciphertext, uint64_t ciphertext_size,
                      static_cast<uint32_t>(status));
         return {};
     }
+
+    plaintext.resize(decrypted_size);
 
     return plaintext;
 }
