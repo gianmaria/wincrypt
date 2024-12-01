@@ -104,7 +104,7 @@ int main()
 
         {
 #if 1
-            auto msg = "hello world!"s;
+            auto msg = "The address of a buffer that contains the ciphertext to be decrypted. The cbInput parameter contains the size of the ciphertext to decrypt. For more information, see Remarks."s;
             auto key = "Passw0rd"s;
             auto associated_data = "v1.1"s;
 
@@ -129,16 +129,23 @@ int main()
             }
             std::cout << std::endl;
 
-            //auto [plaintext, err] = AES::decrypt_galois(ciphertext, key, nonce, associated_data, tag);
+            auto [plaintext, err_d] = AES::decrypt_galois(ciphertext, key, 
+                                                          nonce, tag, associated_data);
+            
+            if (err_d)
+            {
+                // error handling here
+                std::println("ERROR: '{}', code: {}", err_d.str, err_d.code);
+                return 1;
+            }
 
-            //if (err)
-            //{
-            //    // error handling here
-            //    std::println("ERROR: '{}', code: {}", err.str, err.code);
-            //    return 1;
-            //}
+            std::cout << "\nPlaintext: ";
+            for (auto p : plaintext)
+            {
+                std::cout << static_cast<char>(p);
+            }
+            std::cout << std::endl;
 
-            //std::println("plaintext: {}", plaintext);
 #endif // 0
 
 
