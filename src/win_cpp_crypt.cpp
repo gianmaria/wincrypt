@@ -708,156 +708,6 @@ auto encrypt_galois(string_view plaintext,
     auto key_blob = ByteArray(sizeof(key_blob_header) + key.size());
 
     auto tmp = string_view( // use std::span ?
-        reinterpret_cast<const char*>(&key_blob_header),
-        sizeof(key_blob_header)
-    );
-
-    key_blob.insert(key_blob.begin(), tmp.begin(), tmp.end());
-    key_blob.insert(key_blob.begin() + sizeof(key_blob_header), key.begin(), key.end());
-
-    BCRYPT_KEY_HANDLE key_handle = nullptr;
-    status = BCryptImportKey(
-        algo_handle,          // [in]            BCRYPT_ALG_HANDLE hAlgorithm,
-        nullptr,              // [in, optional]  BCRYPT_KEY_HANDLE hImportKey,
-        BCRYPT_KEY_DATA_BLOB, // [in]            LPCWSTR           pszBlobType,
-        &key_handle,          // [out]           BCRYPT_KEY_HANDLE *phKey,
-        nullptr,              // [out, optional] PUCHAR            pbKeyObject,
-        0,                    // [in]            ULONG             cbKeyObject,
-        key_blob.data(),      // [in]            PUCHAR            pbInput,
-        key_blob.size(),      // [in]            ULONG             cbInput,
-        0                     // [in]            ULONG             dwFlags
-    );
-
-    if (status != STATUS_SUCCESS)
-    {
-        return {{}, {}, {}, {.str = ntstatus_to_str(status), .code = status}};
-    }
-
-    auto destroy_key = Defer([&]()
-    {
-        BCryptDestroyKey(key_handle);
-    });
-
-
-    // Prepare the GCM authentication information
-    const uint32_t nonce_size = 12;
-    auto nonce = random_bytes(nonce_size);
-
-    const uint32_t tag_size = 16;
-    auto tag = ByteArray(tag_size, 0);
-
-    BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO authInfo;
-    BCRYPT_INIT_AUTH_MODE_INFO(authInfo);
-
-    authInfo.pbNonce = const_cast<BYTE*>(nonce.data());
-    authInfo.cbNonce = (ULONG)nonce.size();
-    authInfo.pbAuthData = (BYTE*)associated_data.data(); // TODO: fix const removal
-    authInfo.cbAuthData = (ULONG)associated_data.size();    
-    authInfo.pbTag = tag.data();
-    authInfo.cbTag = tag_size;
-
-
-    // Calculate ciphertext size
-    ULONG ciphertextSize = 0;
-    status = BCryptEncrypt(
-        key_handle,                          //   [in, out]           BCRYPT_KEY_HANDLE hKey, 
-        (PUCHAR)plaintext.data(), //   [in]                PUCHAR            pbInput, 
-        (ULONG)plaintext.size(),             //   [in]                ULONG             cbInput, 
-        &authInfo,                           //   [in, optional]      VOID              *pPaddingInfo, 
-        nullptr,                             //   [in, out, optional] PUCHAR            pbIV, 
-        0,                                   //   [in]                ULONG             cbIV, 
-        nullptr,                   //   [out, optional]     PUCHAR            pbOutput, 
-        0,            //   [in]                ULONG             cbOutput, 
-        &ciphertextSize,                     //   [out]               ULONG             *pcbResult,
-        0                                    //   [in]                ULONG             dwFlags
-    );
-    
-    if (status != STATUS_SUCCESS)
-    {
-        return {{}, {}, {}, {.str = ntstatus_to_str(status), .code = status}};
-    }
-
-    auto ciphertext = ByteArray(ciphertextSize, 0);
-
-    ULONG bytes_copied = 0;
-    status = BCryptEncrypt(
-        key_handle,                          //   [in, out]           BCRYPT_KEY_HANDLE hKey, 
-        (PUCHAR)plaintext.data(), //   [in]                PUCHAR            pbInput, 
-        (ULONG)plaintext.size(),  //   [in]                ULONG             cbInput, 
-        &authInfo,                //   [in, optional]      VOID              *pPaddingInfo, 
-        nullptr,                  //   [in, out, optional] PUCHAR            pbIV, 
-        0,                        //   [in]                ULONG             cbIV, 
-        ciphertext.data(),        //   [out, optional]     PUCHAR            pbOutput, 
-        ciphertext.size(),            //   [in]                ULONG             cbOutput, 
-        &bytes_copied,                     //   [out]               ULONG             *pcbResult,
-        0                                    //   [in]                ULONG             dwFlags
-    );
-
-    if (status != STATUS_SUCCESS)
-    {
-        return {{}, {}, {}, {.str = ntstatus_to_str(status), .code = status}};
-    }
-
-    // tuple<Ciphertext, Nonce, Tag, Error>
-    return {ciphertext, nonce, tag, {}};
-}
-
-auto decrypt_galois(
-    ByteArray chiphertext,
-    string_view key,
-    ByteArray nonce,
-    ByteArray tag,
-    string_view associated_data
-) -> tuple<Plaintext, Error>
-{
-    return {};
-
-#if 0
-    NTSTATUS status = 0;
-
-    BCRYPT_ALG_HANDLE algo_handle = nullptr;
-
-    status = BCryptOpenAlgorithmProvider(
-        &algo_handle,         // [out] BCRYPT_ALG_HANDLE *phAlgorithm,
-        BCRYPT_AES_ALGORITHM, // [in]  LPCWSTR           pszAlgId,
-        nullptr,              // [in]  LPCWSTR           pszImplementation,
-        0                     // [in]  ULONG             dwFlags
-    );
-
-    if (status != STATUS_SUCCESS)
-    {
-        return {{}, {}, {}, {.str = ntstatus_to_str(status), .code = status}};
-    }
-
-    auto close_algo = Defer([&]()
-    {
-        BCryptCloseAlgorithmProvider(algo_handle, 0);
-    });
-
-    status = BCryptSetProperty(
-        algo_handle,                     // [in, out] BCRYPT_HANDLE hObject,
-        BCRYPT_CHAINING_MODE,            // [in]      LPCWSTR       pszProperty,
-        (PUCHAR)BCRYPT_CHAIN_MODE_GCM,   // [in]      PUCHAR        pbInput,
-        sizeof(BCRYPT_CHAIN_MODE_GCM),   // [in]      ULONG         cbInput,
-        0                                // [in]      ULONG         dwFlags
-    );
-
-    if (status != STATUS_SUCCESS)
-    {
-        return {{}, {}, {}, {.str = ntstatus_to_str(status), .code = status}};
-    }
-
-    // Import the AES key
-    auto key = SHA256::generate(password);
-    BCRYPT_KEY_DATA_BLOB_HEADER key_blob_header = {
-        BCRYPT_KEY_DATA_BLOB_MAGIC,
-        BCRYPT_KEY_DATA_BLOB_VERSION1,
-        (ULONG)key.size()
-    };
-
-    auto key_blob = ByteArray(sizeof(key_blob_header) + key.size());
-
-    auto tmp = string_view( // use std::span ?
                            reinterpret_cast<const char*>(&key_blob_header),
                            sizeof(key_blob_header)
     );
@@ -902,7 +752,7 @@ auto decrypt_galois(
     authInfo.pbNonce = const_cast<BYTE*>(nonce.data());
     authInfo.cbNonce = (ULONG)nonce.size();
     authInfo.pbAuthData = (BYTE*)associated_data.data(); // TODO: fix const removal
-    authInfo.cbAuthData = (ULONG)associated_data.size();    
+    authInfo.cbAuthData = (ULONG)associated_data.size();
     authInfo.pbTag = tag.data();
     authInfo.cbTag = tag_size;
 
@@ -950,7 +800,157 @@ auto decrypt_galois(
 
     // tuple<Ciphertext, Nonce, Tag, Error>
     return {ciphertext, nonce, tag, {}};
-#endif // 0
+}
+
+auto decrypt_galois(
+    ByteArray ciphertext,
+    string_view password,
+    ByteArray nonce,
+    ByteArray tag,
+    string_view associated_data
+) -> tuple<Plaintext, Error>
+{
+    NTSTATUS status = 0;
+
+    BCRYPT_ALG_HANDLE algo_handle = nullptr;
+    status = BCryptOpenAlgorithmProvider(
+        &algo_handle,         // [out] BCRYPT_ALG_HANDLE *phAlgorithm,
+        BCRYPT_AES_ALGORITHM, // [in]  LPCWSTR           pszAlgId,
+        nullptr,              // [in]  LPCWSTR           pszImplementation,
+        0                     // [in]  ULONG             dwFlags
+    );
+
+    if (status != STATUS_SUCCESS)
+    {
+        return {{}, {.str = ntstatus_to_str(status), .code = status}};
+    }
+
+    auto close_algo = Defer([&]()
+    {
+        BCryptCloseAlgorithmProvider(algo_handle, 0);
+    });
+
+    status = BCryptSetProperty(
+        algo_handle,                     // [in, out] BCRYPT_HANDLE hObject,
+        BCRYPT_CHAINING_MODE,            // [in]      LPCWSTR       pszProperty,
+        (PUCHAR)BCRYPT_CHAIN_MODE_GCM,   // [in]      PUCHAR        pbInput,
+        sizeof(BCRYPT_CHAIN_MODE_GCM),   // [in]      ULONG         cbInput,
+        0                                // [in]      ULONG         dwFlags
+    );
+
+    if (status != STATUS_SUCCESS)
+    {
+        return {{}, {.str = ntstatus_to_str(status), .code = status}};
+    }
+
+    // Import the AES key
+    auto key = SHA256::generate(password);
+    BCRYPT_KEY_DATA_BLOB_HEADER key_blob_header = {
+        BCRYPT_KEY_DATA_BLOB_MAGIC,
+        BCRYPT_KEY_DATA_BLOB_VERSION1,
+        (ULONG)key.size()
+    };
+
+    auto key_blob = ByteArray(sizeof(key_blob_header) + key.size());
+
+    auto tmp = string_view( // use std::span ?
+                           reinterpret_cast<const char*>(&key_blob_header),
+                           sizeof(key_blob_header)
+    );
+
+    key_blob.insert(key_blob.begin(), tmp.begin(), tmp.end());
+    key_blob.insert(key_blob.begin() + sizeof(key_blob_header), key.begin(), key.end());
+
+    BCRYPT_KEY_HANDLE key_handle = nullptr;
+    status = BCryptImportKey(
+        algo_handle,          // [in]            BCRYPT_ALG_HANDLE hAlgorithm,
+        nullptr,              // [in, optional]  BCRYPT_KEY_HANDLE hImportKey,
+        BCRYPT_KEY_DATA_BLOB, // [in]            LPCWSTR           pszBlobType,
+        &key_handle,          // [out]           BCRYPT_KEY_HANDLE *phKey,
+        nullptr,              // [out, optional] PUCHAR            pbKeyObject,
+        0,                    // [in]            ULONG             cbKeyObject,
+        key_blob.data(),      // [in]            PUCHAR            pbInput,
+        key_blob.size(),      // [in]            ULONG             cbInput,
+        0                     // [in]            ULONG             dwFlags
+    );
+
+    if (status != STATUS_SUCCESS)
+    {
+        return {{}, {.str = ntstatus_to_str(status), .code = status}};
+    }
+
+    auto destroy_key = Defer([&]()
+    {
+        BCryptDestroyKey(key_handle);
+    });
+
+    // Prepare the GCM authentication information
+    const uint32_t nonce_size = 12;
+
+    const uint32_t tag_size = 16;
+
+    BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO authInfo;
+    BCRYPT_INIT_AUTH_MODE_INFO(authInfo);
+
+    authInfo.pbNonce = const_cast<BYTE*>(nonce.data());
+    authInfo.cbNonce = (ULONG)nonce.size();
+    authInfo.pbAuthData = (BYTE*)associated_data.data(); // TODO: fix const removal
+    authInfo.cbAuthData = (ULONG)associated_data.size();
+    authInfo.pbTag = tag.data();
+    authInfo.cbTag = tag_size;
+
+    // Calculate ciphertext size
+    ULONG plaintext_size = 0;
+    status = BCryptDecrypt(
+        key_handle,                //   [in, out]           BCRYPT_KEY_HANDLE hKey,
+
+        (PUCHAR)ciphertext.data(), //   [in]                PUCHAR            pbInput,
+        (ULONG)ciphertext.size(),  //   [in]                ULONG             cbInput,
+
+        &authInfo,                 //   [in, optional]      VOID              *pPaddingInfo,
+
+        nullptr,                   //   [in, out, optional] PUCHAR            pbIV,
+        0,                         //   [in]                ULONG             cbIV,
+
+        nullptr,                   //   [out, optional]     PUCHAR            pbOutput,
+        0,                         //   [in]                ULONG             cbOutput,
+
+        &plaintext_size,           //   [out]               ULONG             *pcbResult,
+        0                          //   [in]                ULONG             dwFlags
+    );
+
+    if (status != STATUS_SUCCESS)
+    {
+        return {{}, {.str = ntstatus_to_str(status), .code = status}};
+    }
+
+    auto plaintext = ByteArray(plaintext_size, 0);
+
+    ULONG bytes_copied = 0;
+    status = BCryptEncrypt(
+        key_handle,               //   [in, out]           BCRYPT_KEY_HANDLE hKey,
+
+        (PUCHAR)ciphertext.data(), //   [in]                PUCHAR            pbInput,
+        (ULONG)ciphertext.size(),  //   [in]                ULONG             cbInput,
+
+        &authInfo,                //   [in, optional]      VOID              *pPaddin
+
+        nullptr,                  //   [in, out, optional] PUCHAR            pbIV,
+        0,                        //   [in]                ULONG             cbIV,
+
+        plaintext.data(),         //   [out, optional]     PUCHAR            pbOutput
+        plaintext.size(),         //   [in]                ULONG             cbOutput
+
+        &bytes_copied,            //   [out]               ULONG             *pcbResu
+        0                         //   [in]                ULONG             dwFlags
+    );
+
+    if (status != STATUS_SUCCESS)
+    {
+        return {{}, {.str = ntstatus_to_str(status), .code = status}};
+    }
+
+    return {plaintext, {}};
 }
 
 

@@ -63,13 +63,13 @@ struct Error
 
 auto encrypt_galois(
     string_view plaintext,
-    string_view key,
+    string_view password,
     string_view associated_data = {} // optional
 ) -> tuple<Ciphertext, Nonce, Tag, Error>;
 
 auto decrypt_galois(
-    ByteArray chiphertext,
-    string_view key,
+    ByteArray ciphertext,
+    string_view password,
     ByteArray nonce,
     ByteArray tag,
     string_view associated_data = {} // optional
