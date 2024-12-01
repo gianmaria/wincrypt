@@ -118,11 +118,18 @@ int main()
             }
 
             std::cout << "Ciphertext: ";
-            for (auto c : ciphertext)
+            for (auto b : ciphertext)
             {
-                std::cout << std::hex << static_cast<int>(c) << " ";
+                cout
+                    << std::setw(2)
+                    << std::setfill('0')
+                    << std::hex
+                    << std::nouppercase
+                    << static_cast<u32>(b);
             }
-            std::cout << "\nTag: ";
+            cout << endl;
+
+            std::cout << "Tag: ";
             for (auto t : tag)
             {
                 std::cout << std::hex << static_cast<int>(t) << " ";
