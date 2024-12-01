@@ -700,14 +700,14 @@ auto encrypt_galois(string_view plaintext,
     // Import the AES key
     auto key = SHA256::generate(password);
     BCRYPT_KEY_DATA_BLOB_HEADER key_blob_header = {
-        BCRYPT_KEY_DATA_BLOB_MAGIC, 
-        BCRYPT_KEY_DATA_BLOB_VERSION1, 
+        BCRYPT_KEY_DATA_BLOB_MAGIC,
+        BCRYPT_KEY_DATA_BLOB_VERSION1,
         (ULONG)key.size()
     };
 
     auto key_blob = ByteArray(sizeof(key_blob_header) + key.size());
 
-    auto tmp = string_view(
+    auto tmp = string_view( // use std::span ?
         reinterpret_cast<const char*>(&key_blob_header),
         sizeof(key_blob_header)
     );
@@ -715,24 +715,45 @@ auto encrypt_galois(string_view plaintext,
     key_blob.insert(key_blob.begin(), tmp.begin(), tmp.end());
     key_blob.insert(key_blob.begin() + sizeof(key_blob_header), key.begin(), key.end());
 
-    return {};
+    BCRYPT_KEY_HANDLE key_handle = nullptr;
+    status = BCryptImportKey(
+        algo_handle,          // [in]            BCRYPT_ALG_HANDLE hAlgorithm,
+        nullptr,              // [in, optional]  BCRYPT_KEY_HANDLE hImportKey,
+        BCRYPT_KEY_DATA_BLOB, // [in]            LPCWSTR           pszBlobType,
+        &key_handle,          // [out]           BCRYPT_KEY_HANDLE *phKey,
+        nullptr,              // [out, optional] PUCHAR            pbKeyObject,
+        0,                    // [in]            ULONG             cbKeyObject,
+        key_blob.data(),      // [in]            PUCHAR            pbInput,
+        key_blob.size(),      // [in]            ULONG             cbInput,
+        0                     // [in]            ULONG             dwFlags
+    );
 
-#if 0
-    BCRYPT_KEY_HANDLE hKey = nullptr;
-
-    if ((status = BCryptImportKey(hAlg, nullptr, BCRYPT_KEY_DATA_BLOB, &hKey, nullptr, 0, keyBlob.data(), (ULONG)keyBlob.size(), 0)) != STATUS_SUCCESS)
+    if (status != STATUS_SUCCESS)
     {
-        HandleError("Failed to import AES key", status);
+        return {{}, {}, {}, {.str = ntstatus_to_str(status), .code = status}};
     }
+
+    auto destroy_key = Defer([&]()
+    {
+        BCryptDestroyKey(key_handle);
+    });
+
 
     // Prepare the GCM authentication information
     BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO authInfo;
     BCRYPT_INIT_AUTH_MODE_INFO(authInfo);
 
+    const uint32_t nonce_size = 12;
+    auto nonce = random_bytes(nonce_size);
+
     authInfo.pbNonce = const_cast<BYTE*>(nonce.data());
     authInfo.cbNonce = (ULONG)nonce.size();
-    authInfo.pbAuthData = const_cast<BYTE*>(associatedData.data());
-    authInfo.cbAuthData = (ULONG)associatedData.size();
+    authInfo.pbAuthData = (BYTE*)associated_data.data(); // TODO: fix const removal
+    authInfo.cbAuthData = (ULONG)associated_data.size();    
+
+    return {};
+
+#if 0
 
     tag.resize(tagSize);
     authInfo.pbTag = tag.data();
