@@ -740,44 +740,66 @@ auto encrypt_galois(string_view plaintext,
 
 
     // Prepare the GCM authentication information
-    BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO authInfo;
-    BCRYPT_INIT_AUTH_MODE_INFO(authInfo);
-
     const uint32_t nonce_size = 12;
     auto nonce = random_bytes(nonce_size);
+
+    const uint32_t tag_size = 16;
+    auto tag = ByteArray(tag_size, 0);
+
+    BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO authInfo;
+    BCRYPT_INIT_AUTH_MODE_INFO(authInfo);
 
     authInfo.pbNonce = const_cast<BYTE*>(nonce.data());
     authInfo.cbNonce = (ULONG)nonce.size();
     authInfo.pbAuthData = (BYTE*)associated_data.data(); // TODO: fix const removal
     authInfo.cbAuthData = (ULONG)associated_data.size();    
-
-    return {};
-
-#if 0
-
-    tag.resize(tagSize);
     authInfo.pbTag = tag.data();
-    authInfo.cbTag = tagSize;
+    authInfo.cbTag = tag_size;
 
+
+    // Calculate ciphertext size
     ULONG ciphertextSize = 0;
-    std::vector<BYTE> ciphertext(plaintext.size());
-
-    // Perform the encryption
-    if ((status = BCryptEncrypt(hKey, const_cast<BYTE*>(plaintext.data()), (ULONG)plaintext.size(),
-        &authInfo, nullptr, 0, ciphertext.data(), (ULONG)ciphertext.size(),
-        &ciphertextSize, 0)) != STATUS_SUCCESS)
+    status = BCryptEncrypt(
+        key_handle,                          //   [in, out]           BCRYPT_KEY_HANDLE hKey, 
+        (PUCHAR)plaintext.data(), //   [in]                PUCHAR            pbInput, 
+        (ULONG)plaintext.size(),             //   [in]                ULONG             cbInput, 
+        &authInfo,                           //   [in, optional]      VOID              *pPaddingInfo, 
+        nullptr,                             //   [in, out, optional] PUCHAR            pbIV, 
+        0,                                   //   [in]                ULONG             cbIV, 
+        nullptr,                   //   [out, optional]     PUCHAR            pbOutput, 
+        0,            //   [in]                ULONG             cbOutput, 
+        &ciphertextSize,                     //   [out]               ULONG             *pcbResult,
+        0                                    //   [in]                ULONG             dwFlags
+    );
+    
+    if (status != STATUS_SUCCESS)
     {
-        HandleError("Failed to encrypt data", status);
+        return {{}, {}, {}, {.str = ntstatus_to_str(status), .code = status}};
     }
 
-    // Clean up
-    if (hKey) BCryptDestroyKey(hKey);
-    if (hAlg) BCryptCloseAlgorithmProvider(hAlg, 0);
+    auto ciphertext = ByteArray(ciphertextSize, 0);
 
-    return ciphertext;
-#endif // 0
+    ULONG bytes_copied = 0;
+    status = BCryptEncrypt(
+        key_handle,                          //   [in, out]           BCRYPT_KEY_HANDLE hKey, 
+        (PUCHAR)plaintext.data(), //   [in]                PUCHAR            pbInput, 
+        (ULONG)plaintext.size(),  //   [in]                ULONG             cbInput, 
+        &authInfo,                //   [in, optional]      VOID              *pPaddingInfo, 
+        nullptr,                  //   [in, out, optional] PUCHAR            pbIV, 
+        0,                        //   [in]                ULONG             cbIV, 
+        ciphertext.data(),        //   [out, optional]     PUCHAR            pbOutput, 
+        ciphertext.size(),            //   [in]                ULONG             cbOutput, 
+        &bytes_copied,                     //   [out]               ULONG             *pcbResult,
+        0                                    //   [in]                ULONG             dwFlags
+    );
 
+    if (status != STATUS_SUCCESS)
+    {
+        return {{}, {}, {}, {.str = ntstatus_to_str(status), .code = status}};
+    }
 
+    // tuple<Ciphertext, Nonce, Tag, Error>
+    return {ciphertext, nonce, tag, {}};
 }
 
 #if 0
