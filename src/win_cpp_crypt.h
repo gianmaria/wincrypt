@@ -40,6 +40,22 @@ vector<uint8_t> encrypt(string_view plaintext, string_view password);
 vector<uint8_t> decrypt(const uint8_t* ciphertext, uint64_t ciphertext_size, 
                         string_view password);
 vector<uint8_t> decrypt(string_view ciphertext, string_view password);
+
+vector<uint8_t> encrypt_galois(const std::vector<uint8_t>& plaintext,
+                               const std::vector<uint8_t>& key,
+                               const std::vector<uint8_t>& nonce,
+                               const std::vector<uint8_t>& associatedData,
+                               std::vector<uint8_t>& tag,
+                               unsigned long tagSize = 16 // GCM tag size (16 bytes recommended)
+);
+
+vector<uint8_t> decrypt_galois(
+    const std::vector<uint8_t>& ciphertext,
+    const std::vector<uint8_t>& key,
+    const std::vector<uint8_t>& nonce,
+    const std::vector<uint8_t>& associatedData,
+    const std::vector<uint8_t>& tag
+);
 }
 
 }

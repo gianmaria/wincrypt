@@ -14,6 +14,8 @@
 #include <memory>
 #include <print>
 #include <functional>
+#include <iostream>
+
 
 using std::function;
 
@@ -645,6 +647,144 @@ vector<uint8_t> decrypt(string_view ciphertext, string_view password)
         ciphertext.size(),
         password
     ); 
+}
+
+
+
+
+
+
+
+// Function to handle errors
+void HandleError(const char* message, NTSTATUS status) {
+    std::cout << message << " Error: 0x" << std::hex << status << std::endl;
+    throw std::runtime_error(message);
+}
+
+vector<uint8_t> encrypt_galois(
+    const std::vector<uint8_t>& plaintext,
+    const std::vector<uint8_t>& key,
+    const std::vector<uint8_t>& nonce,
+    const std::vector<uint8_t>& associatedData,
+    std::vector<uint8_t>& tag,
+    ULONG tagSize // GCM tag size (16 bytes recommended)
+)
+{
+    BCRYPT_ALG_HANDLE hAlg = nullptr;
+    BCRYPT_KEY_HANDLE hKey = nullptr;
+    NTSTATUS status = 0;
+
+    // Open an algorithm provider for AES-GCM
+    if ((status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_AES_ALGORITHM, nullptr, 0)) != STATUS_SUCCESS) {
+        HandleError("Failed to open algorithm provider", status);
+    }
+
+    // Set the chaining mode to GCM
+    if ((status = BCryptSetProperty(hAlg, BCRYPT_CHAINING_MODE, (PUCHAR)BCRYPT_CHAIN_MODE_GCM, sizeof(BCRYPT_CHAIN_MODE_GCM), 0)) != STATUS_SUCCESS) {
+        HandleError("Failed to set chaining mode to GCM", status);
+    }
+
+    // Import the AES key
+    BCRYPT_KEY_DATA_BLOB_HEADER keyBlobHeader = { BCRYPT_KEY_DATA_BLOB_MAGIC, BCRYPT_KEY_DATA_BLOB_VERSION1, (ULONG)key.size() };
+    std::vector<BYTE> keyBlob(sizeof(keyBlobHeader) + key.size());
+    memcpy(keyBlob.data(), &keyBlobHeader, sizeof(keyBlobHeader));
+    memcpy(keyBlob.data() + sizeof(keyBlobHeader), key.data(), key.size());
+
+    if ((status = BCryptImportKey(hAlg, nullptr, BCRYPT_KEY_DATA_BLOB, &hKey, nullptr, 0, keyBlob.data(), (ULONG)keyBlob.size(), 0)) != STATUS_SUCCESS) {
+        HandleError("Failed to import AES key", status);
+    }
+
+    // Prepare the GCM authentication information
+    BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO authInfo;
+    BCRYPT_INIT_AUTH_MODE_INFO(authInfo);
+
+    authInfo.pbNonce = const_cast<BYTE*>(nonce.data());
+    authInfo.cbNonce = (ULONG)nonce.size();
+    authInfo.pbAuthData = const_cast<BYTE*>(associatedData.data());
+    authInfo.cbAuthData = (ULONG)associatedData.size();
+
+    tag.resize(tagSize);
+    authInfo.pbTag = tag.data();
+    authInfo.cbTag = tagSize;
+
+    ULONG ciphertextSize = 0;
+    std::vector<BYTE> ciphertext(plaintext.size());
+
+    // Perform the encryption
+    if ((status = BCryptEncrypt(hKey, const_cast<BYTE*>(plaintext.data()), (ULONG)plaintext.size(),
+        &authInfo, nullptr, 0, ciphertext.data(), (ULONG)ciphertext.size(),
+        &ciphertextSize, 0)) != STATUS_SUCCESS) {
+        HandleError("Failed to encrypt data", status);
+    }
+
+    // Clean up
+    if (hKey) BCryptDestroyKey(hKey);
+    if (hAlg) BCryptCloseAlgorithmProvider(hAlg, 0);
+
+    return ciphertext;
+
+}
+
+vector<uint8_t> decrypt_galois(
+    const std::vector<uint8_t>& ciphertext,
+    const std::vector<uint8_t>& key,
+    const std::vector<uint8_t>& nonce,
+    const std::vector<uint8_t>& associatedData,
+    const std::vector<uint8_t>& tag
+)
+{
+    BCRYPT_ALG_HANDLE hAlg = nullptr;
+    BCRYPT_KEY_HANDLE hKey = nullptr;
+    NTSTATUS status = 0;
+
+    // Open an algorithm provider for AES-GCM
+    if ((status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_AES_ALGORITHM, nullptr, 0)) != STATUS_SUCCESS) {
+        HandleError("Failed to open algorithm provider", status);
+    }
+
+    // Set the chaining mode to GCM
+    if ((status = BCryptSetProperty(hAlg, BCRYPT_CHAINING_MODE, (PUCHAR)BCRYPT_CHAIN_MODE_GCM, sizeof(BCRYPT_CHAIN_MODE_GCM), 0)) != STATUS_SUCCESS) {
+        HandleError("Failed to set chaining mode to GCM", status);
+    }
+
+    // Import the AES key
+    BCRYPT_KEY_DATA_BLOB_HEADER keyBlobHeader = { BCRYPT_KEY_DATA_BLOB_MAGIC, BCRYPT_KEY_DATA_BLOB_VERSION1, (ULONG)key.size() };
+    std::vector<BYTE> keyBlob(sizeof(keyBlobHeader) + key.size());
+    memcpy(keyBlob.data(), &keyBlobHeader, sizeof(keyBlobHeader));
+    memcpy(keyBlob.data() + sizeof(keyBlobHeader), key.data(), key.size());
+
+    if ((status = BCryptImportKey(hAlg, nullptr, BCRYPT_KEY_DATA_BLOB, &hKey, nullptr, 0, keyBlob.data(), (ULONG)keyBlob.size(), 0)) != STATUS_SUCCESS) {
+        HandleError("Failed to import AES key", status);
+    }
+
+    // Prepare the GCM authentication information
+    BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO authInfo;
+    BCRYPT_INIT_AUTH_MODE_INFO(authInfo);
+
+    authInfo.pbNonce = const_cast<BYTE*>(nonce.data());
+    authInfo.cbNonce = (ULONG)nonce.size();
+    authInfo.pbAuthData = const_cast<BYTE*>(associatedData.data());
+    authInfo.cbAuthData = (ULONG)associatedData.size();
+    authInfo.pbTag = const_cast<BYTE*>(tag.data());
+    authInfo.cbTag = (ULONG)tag.size();
+
+    ULONG plaintextSize = 0;
+    std::vector<BYTE> plaintext(ciphertext.size());
+
+    // Perform the decryption
+    if ((status = BCryptDecrypt(hKey, const_cast<BYTE*>(ciphertext.data()), (ULONG)ciphertext.size(),
+        &authInfo, nullptr, 0, plaintext.data(), (ULONG)plaintext.size(),
+        &plaintextSize, 0)) != STATUS_SUCCESS) {
+        HandleError("Failed to decrypt data", status);
+    }
+
+    plaintext.resize(plaintextSize); // Resize to actual plaintext size
+
+    // Clean up
+    if (hKey) BCryptDestroyKey(hKey);
+    if (hAlg) BCryptCloseAlgorithmProvider(hAlg, 0);
+
+    return plaintext;
 }
 
 }
