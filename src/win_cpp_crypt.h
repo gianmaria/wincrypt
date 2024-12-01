@@ -8,7 +8,7 @@
 #include <tuple>
 
 /*
-* TODO: 
+* TODO:
 *   [X] test AES::encrypt and AES::decrypt
 *   [] add non zero IV
 *   [] salt password
@@ -25,6 +25,7 @@ using std::tuple;
 using ByteArray = vector<uint8_t>;
 
 using Ciphertext = ByteArray;
+using Plaintext = ByteArray;
 using Nonce = ByteArray;
 using Tag = ByteArray;
 
@@ -60,22 +61,19 @@ struct Error
     }
 };
 
-auto encrypt_galois(string_view plaintext,
-                    string_view key,
-                    string_view associated_data = {} // optional
+auto encrypt_galois(
+    string_view plaintext,
+    string_view key,
+    string_view associated_data = {} // optional
 ) -> tuple<Ciphertext, Nonce, Tag, Error>;
 
-#if 0
-vector<uint8_t> decrypt_galois(
-    const std::vector<uint8_t>& ciphertext,
-    const std::vector<uint8_t>& key,
-    const std::vector<uint8_t>& nonce,
-    const std::vector<uint8_t>& associatedData,
-    const std::vector<uint8_t>& tag
-);
-#endif // 0
-
-
+auto decrypt_galois(
+    ByteArray chiphertext,
+    string_view key,
+    ByteArray nonce,
+    ByteArray tag,
+    string_view associated_data = {} // optional
+) -> tuple<Plaintext, Error>;
 
 } // AES
 
