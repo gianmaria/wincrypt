@@ -103,6 +103,89 @@ int main()
         using namespace WinCppCrypt;
 
         {
+#if 1
+            auto msg = "hello world!"s;
+            auto key = "Passw0rd"s;
+            auto associated_data = "v1.1"s;
+
+            auto [ciphertext, nonce, tag, err] = AES::encrypt_galois(msg, key, associated_data);
+
+            if (err)
+            {
+                // error handling here
+                std::println("ERROR: '{}', code: {}", err.str, err.code);
+                return 1;
+            }
+
+            std::cout << "Ciphertext: ";
+            for (auto c : ciphertext)
+            {
+                std::cout << std::hex << static_cast<int>(c) << " ";
+            }
+            std::cout << "\nTag: ";
+            for (auto t : tag)
+            {
+                std::cout << std::hex << static_cast<int>(t) << " ";
+            }
+            std::cout << std::endl;
+
+            //auto [plaintext, err] = AES::decrypt_galois(ciphertext, key, nonce, associated_data, tag);
+
+            //if (err)
+            //{
+            //    // error handling here
+            //    std::println("ERROR: '{}', code: {}", err.str, err.code);
+            //    return 1;
+            //}
+
+            //std::println("plaintext: {}", plaintext);
+#endif // 0
+
+
+        }
+
+#if 0
+        {
+            // Example inputs
+            std::vector<uint8_t> key(32, 0x11);  // 256-bit key (32 bytes)
+            std::vector<uint8_t> nonce(12, 0x22); // 12-byte nonce
+            std::vector<uint8_t> plaintext = {'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd', '!', '!', '!'};
+            std::vector<uint8_t> associatedData = {0x01, 0x02, 0x03, 0x04}; // Additional authenticated data (optional)
+
+            std::vector<uint8_t> tag;
+            auto ciphertext = AES::encrypt_galois(plaintext, key, nonce, associatedData, tag);
+
+            // Print results
+            std::cout << "Ciphertext: ";
+            for (auto c : ciphertext)
+            {
+                std::cout << std::hex << static_cast<int>(c) << " ";
+            }
+            std::cout << "\nTag: ";
+            for (auto t : tag)
+            {
+                std::cout << std::hex << static_cast<int>(t) << " ";
+            }
+            std::cout << std::endl;
+
+
+            // Decrypt
+            auto plaintext2 = AES::decrypt_galois(ciphertext, key, nonce, associatedData, tag);
+
+            // Print results
+            std::cout << "Plaintext2: ";
+            for (auto p : plaintext2)
+            {
+                std::cout << static_cast<char>(p);
+            }
+            std::cout << std::endl;
+
+        }
+#endif // 0
+
+
+#if 0
+        {
             string_view files[] = {
                 "big_data_01.bin",
                 "big_data_02.mp4",
@@ -116,6 +199,8 @@ int main()
             }
 
         }
+
+#endif // 0
 
 
 #if 0
