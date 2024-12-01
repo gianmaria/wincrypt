@@ -88,10 +88,10 @@ string base64_encode(const uint8_t* data, uint64_t data_size)
     result = CryptBinaryToStringA(
         data,      // [in]            const BYTE * pbBinary,
         data_size, // [in]            DWORD      cbBinary,
-         
+
         CRYPT_STRING_BASE64 | // [in]            DWORD      dwFlags, 
-        CRYPT_STRING_NOCRLF, 
-         
+        CRYPT_STRING_NOCRLF,
+
         nullptr, // [out, optional] LPSTR      pszString,
         &output_size// [in, out]       DWORD * pcchString
     );
@@ -102,14 +102,14 @@ string base64_encode(const uint8_t* data, uint64_t data_size)
         return {};
     }
 
-    auto base64 = string(output_size-1, 0);
+    auto base64 = string(output_size - 1, 0);
 
     result = CryptBinaryToStringA(
         data,      // [in]            const BYTE * pbBinary,
         data_size, // [in]            DWORD      cbBinary,
 
         CRYPT_STRING_BASE64 | // [in]            DWORD      dwFlags, 
-        CRYPT_STRING_NOCRLF, 
+        CRYPT_STRING_NOCRLF,
 
         base64.data(), // [out, optional] LPSTR      pszString,
         &output_size// [in, out]       DWORD * pcchString
@@ -137,7 +137,7 @@ vector<uint8_t> random_bytes(uint32_t count)
         nullptr,                 // [in] LPCWSTR pszImplementation,
         0                        // [in] ULONG dwFlags
     );
-     // TODO: close AlgorithmProvider
+    // TODO: close AlgorithmProvider
 
     if (status != STATUS_SUCCESS)
     {
@@ -151,10 +151,10 @@ vector<uint8_t> random_bytes(uint32_t count)
 
     status = BCryptGenRandom(
         algo_handle, // [in, out] BCRYPT_ALG_HANDLE hAlgorithm,
-        
+
         random_data.data(), // [in, out] PUCHAR            pbBuffer,
         random_data.size(), // [in]      ULONG             cbBuffer,
-        
+
         0      // [in]      ULONG             dwFlags
     );
 
@@ -309,7 +309,7 @@ vector<uint8_t> generate(string_view str)
 namespace AES
 {
 
-vector<uint8_t> encrypt(const uint8_t* plaintext, uint64_t plaintext_size, 
+vector<uint8_t> encrypt(const uint8_t* plaintext, uint64_t plaintext_size,
                         string_view password)
 {
     NTSTATUS status = 0;
@@ -480,7 +480,7 @@ vector<uint8_t> encrypt(string_view plaintext, string_view password)
 }
 
 
-vector<uint8_t> decrypt(const uint8_t* ciphertext, uint64_t ciphertext_size, 
+vector<uint8_t> decrypt(const uint8_t* ciphertext, uint64_t ciphertext_size,
                         string_view password)
 {
     NTSTATUS status = 0;
@@ -648,7 +648,7 @@ vector<uint8_t> decrypt(string_view ciphertext, string_view password)
         reinterpret_cast<const uint8_t*>(ciphertext.data()),
         ciphertext.size(),
         password
-    ); 
+    );
 }
 
 
@@ -664,9 +664,9 @@ auto encrypt_galois(string_view plaintext,
 ) -> tuple<Ciphertext, Nonce, Tag, Error>
 {
     NTSTATUS status = 0;
-    
+
     BCRYPT_ALG_HANDLE algo_handle = nullptr;
-    
+
     status = BCryptOpenAlgorithmProvider(
         &algo_handle,         // [out] BCRYPT_ALG_HANDLE *phAlgorithm,
         BCRYPT_AES_ALGORITHM, // [in]  LPCWSTR           pszAlgId,
@@ -683,7 +683,7 @@ auto encrypt_galois(string_view plaintext,
     {
         BCryptCloseAlgorithmProvider(algo_handle, 0);
     });
-        
+
     status = BCryptSetProperty(
         algo_handle,                     // [in, out] BCRYPT_HANDLE hObject,
         BCRYPT_CHAINING_MODE,            // [in]      LPCWSTR       pszProperty,
@@ -691,7 +691,7 @@ auto encrypt_galois(string_view plaintext,
         sizeof(BCRYPT_CHAIN_MODE_GCM),   // [in]      ULONG         cbInput,
         0                                // [in]      ULONG         dwFlags
     );
-    
+
     if (status != STATUS_SUCCESS)
     {
         return {{}, {}, {}, {.str = ntstatus_to_str(status), .code = status}};
