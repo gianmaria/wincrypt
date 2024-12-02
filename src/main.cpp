@@ -104,7 +104,7 @@ int main()
 
         {
 #if 1
-            auto msg = "The address of a buffer that contains the ciphertext to be decrypted. The cbInput parameter contains the size of the ciphertext to decrypt. For more information, see Remarks."s;
+            auto msg = "is this encryption even working???"s;
             auto key = "Passw0rd"s;
             auto associated_data = "v1.1"s;
 

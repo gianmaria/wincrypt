@@ -697,6 +697,26 @@ auto encrypt_galois(string_view plaintext, // P
         return {{}, {}, {}, {.str = ntstatus_to_str(status), .code = status}};
     }
 
+#if 1
+    // TODO: i known the size of tag array
+    BCRYPT_AUTH_TAG_LENGTHS_STRUCT authTagLengths {};
+    ULONG bytes_copied = 0;
+    status = BCryptGetProperty(
+        algo_handle,            // [in]  BCRYPT_HANDLE hObject,
+        BCRYPT_AUTH_TAG_LENGTH, // [in]  LPCWSTR       pszProperty,
+        (PUCHAR)&authTagLengths,          // [out] PUCHAR        pbOutput,
+        sizeof(authTagLengths),   // [in]  ULONG         cbOutput,
+        &bytes_copied,          // [out] ULONG         *pcbResult,
+        0                       // [in]  ULONG         dwFlags
+    );
+
+    if (status != STATUS_SUCCESS)
+    {
+        return {{}, {}, {}, {.str = ntstatus_to_str(status), .code = status}};
+    }
+#endif // 0
+
+
     // Import the AES key
     // TODO: 
     //  bad! bad! bad!
@@ -749,7 +769,7 @@ auto encrypt_galois(string_view plaintext, // P
 
     const uint32_t tag_size = 16; // 128 bit
     auto tag = ByteArray(tag_size, 0);
-
+ 
     BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO authInfo;
     BCRYPT_INIT_AUTH_MODE_INFO(authInfo);
 
@@ -761,6 +781,7 @@ auto encrypt_galois(string_view plaintext, // P
     authInfo.cbTag = tag_size;
 
 
+#if 0
     // Calculate ciphertext size
     ULONG ciphertextSize = 0;
     status = BCryptEncrypt(
@@ -768,17 +789,17 @@ auto encrypt_galois(string_view plaintext, // P
 
         (PUCHAR)plaintext.data(), //   [in]                PUCHAR            pbInput, 
         (ULONG)plaintext.size(),  //   [in]                ULONG             cbInput, 
-        
+
         &authInfo,                //   [in, optional]      VOID              *pPaddingInfo, 
-        
-        nonce.data(),             //   [in, out, optional] PUCHAR            pbIV, 
-        nonce.size(),             //   [in]                ULONG             cbIV, 
-        
+
+        nullptr,             //   [in, out, optional] PUCHAR            pbIV, (handled in authInfo)
+        0,             //   [in]                ULONG             cbIV, 
+
         nullptr,                  //   [out, optional]     PUCHAR            pbOutput, 
         0,                        //   [in]                ULONG             cbOutput, 
-        
+
         &ciphertextSize,          //   [out]               ULONG             *pcbResult,
-        
+
         0                         //   [in]                ULONG             dwFlags
     );
 
@@ -786,10 +807,12 @@ auto encrypt_galois(string_view plaintext, // P
     {
         return {{}, {}, {}, {.str = ntstatus_to_str(status), .code = status}};
     }
+#endif // 0
 
-    auto ciphertext = ByteArray(ciphertextSize, 0);
 
-    ULONG bytes_copied = 0;
+    auto ciphertext = ByteArray(plaintext.size(), 0);
+    //ULONG bytes_copied = 0;
+
     status = BCryptEncrypt(
         key_handle,               //   [in, out]           BCRYPT_KEY_HANDLE hKey, 
         
@@ -798,8 +821,8 @@ auto encrypt_galois(string_view plaintext, // P
         
         &authInfo,                //   [in, optional]      VOID              *pPaddingInfo, 
         
-        nonce.data(),             //   [in, out, optional] PUCHAR            pbIV, 
-        nonce.size(),             //   [in]                ULONG             cbIV, 
+        nullptr,             //   [in, out, optional] PUCHAR            pbIV, 
+        0,             //   [in]                ULONG             cbIV, 
         
         ciphertext.data(),        //   [out, optional]     PUCHAR            pbOutput, 
         ciphertext.size(),        //   [in]                ULONG             cbOutput, 
@@ -915,32 +938,7 @@ auto decrypt_galois(
     authInfo.pbTag = tag.data();
     authInfo.cbTag = tag_size;
 
-    // Calculate ciphertext size
-    ULONG plaintext_size = 0;
-    status = BCryptDecrypt(
-        key_handle,                //   [in, out]           BCRYPT_KEY_HANDLE hKey,
-
-        (PUCHAR)ciphertext.data(), //   [in]                PUCHAR            pbInput,
-        (ULONG)ciphertext.size(),  //   [in]                ULONG             cbInput,
-
-        &authInfo,                 //   [in, optional]      VOID              *pPaddingInfo,
-
-        nullptr,                   //   [in, out, optional] PUCHAR            pbIV,
-        0,                         //   [in]                ULONG             cbIV,
-
-        nullptr,                   //   [out, optional]     PUCHAR            pbOutput,
-        0,                         //   [in]                ULONG             cbOutput,
-
-        &plaintext_size,           //   [out]               ULONG             *pcbResult,
-        0                          //   [in]                ULONG             dwFlags
-    );
-
-    if (status != STATUS_SUCCESS)
-    {
-        return {{}, {.str = ntstatus_to_str(status), .code = status}};
-    }
-
-    auto plaintext = ByteArray(plaintext_size, 0);
+    auto plaintext = ByteArray(ciphertext.size(), 0);
 
     ULONG bytes_copied = 0;
     status = BCryptEncrypt(
