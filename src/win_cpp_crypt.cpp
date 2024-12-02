@@ -698,7 +698,11 @@ auto encrypt_galois(string_view plaintext,
     }
 
     // Import the AES key
-    auto key = SHA256::generate(password);
+    // TODO: 
+    //  bad! bad! bad!
+    //  use BCryptDeriveKeyPBKDF2 to derive the key
+    auto key = SHA256::generate(password); // very bad!!!
+    
     BCRYPT_KEY_DATA_BLOB_HEADER key_blob_header = {
         BCRYPT_KEY_DATA_BLOB_MAGIC,
         BCRYPT_KEY_DATA_BLOB_VERSION1,
