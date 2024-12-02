@@ -658,9 +658,9 @@ vector<uint8_t> decrypt(string_view ciphertext, string_view password)
 
 
 
-auto encrypt_galois(string_view plaintext,
-                    string_view password,
-                    string_view associated_data
+auto encrypt_galois(string_view plaintext, // P
+                    string_view password, // K
+                    string_view associated_data // A
 ) -> tuple<Ciphertext, Nonce, Tag, Error>
 {
     NTSTATUS status = 0;
@@ -744,10 +744,10 @@ auto encrypt_galois(string_view plaintext,
 
 
     // Prepare the GCM authentication information
-    const uint32_t nonce_size = 12;
+    const uint32_t nonce_size = 12; // 96 bit
     auto nonce = random_bytes(nonce_size);
 
-    const uint32_t tag_size = 16;
+    const uint32_t tag_size = 16; // 128 bit
     auto tag = ByteArray(tag_size, 0);
 
     BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO authInfo;
@@ -764,16 +764,22 @@ auto encrypt_galois(string_view plaintext,
     // Calculate ciphertext size
     ULONG ciphertextSize = 0;
     status = BCryptEncrypt(
-        key_handle,                          //   [in, out]           BCRYPT_KEY_HANDLE hKey, 
+        key_handle,               //   [in, out]           BCRYPT_KEY_HANDLE hKey, 
+
         (PUCHAR)plaintext.data(), //   [in]                PUCHAR            pbInput, 
-        (ULONG)plaintext.size(),             //   [in]                ULONG             cbInput, 
-        &authInfo,                           //   [in, optional]      VOID              *pPaddingInfo, 
-        nullptr,                             //   [in, out, optional] PUCHAR            pbIV, 
-        0,                                   //   [in]                ULONG             cbIV, 
-        nullptr,                   //   [out, optional]     PUCHAR            pbOutput, 
-        0,            //   [in]                ULONG             cbOutput, 
-        &ciphertextSize,                     //   [out]               ULONG             *pcbResult,
-        0                                    //   [in]                ULONG             dwFlags
+        (ULONG)plaintext.size(),  //   [in]                ULONG             cbInput, 
+        
+        &authInfo,                //   [in, optional]      VOID              *pPaddingInfo, 
+        
+        nonce.data(),             //   [in, out, optional] PUCHAR            pbIV, 
+        nonce.size(),             //   [in]                ULONG             cbIV, 
+        
+        nullptr,                  //   [out, optional]     PUCHAR            pbOutput, 
+        0,                        //   [in]                ULONG             cbOutput, 
+        
+        &ciphertextSize,          //   [out]               ULONG             *pcbResult,
+        
+        0                         //   [in]                ULONG             dwFlags
     );
 
     if (status != STATUS_SUCCESS)
@@ -785,16 +791,22 @@ auto encrypt_galois(string_view plaintext,
 
     ULONG bytes_copied = 0;
     status = BCryptEncrypt(
-        key_handle,                          //   [in, out]           BCRYPT_KEY_HANDLE hKey, 
+        key_handle,               //   [in, out]           BCRYPT_KEY_HANDLE hKey, 
+        
         (PUCHAR)plaintext.data(), //   [in]                PUCHAR            pbInput, 
         (ULONG)plaintext.size(),  //   [in]                ULONG             cbInput, 
+        
         &authInfo,                //   [in, optional]      VOID              *pPaddingInfo, 
-        nullptr,                  //   [in, out, optional] PUCHAR            pbIV, 
-        0,                        //   [in]                ULONG             cbIV, 
+        
+        nonce.data(),             //   [in, out, optional] PUCHAR            pbIV, 
+        nonce.size(),             //   [in]                ULONG             cbIV, 
+        
         ciphertext.data(),        //   [out, optional]     PUCHAR            pbOutput, 
-        ciphertext.size(),            //   [in]                ULONG             cbOutput, 
-        &bytes_copied,                     //   [out]               ULONG             *pcbResult,
-        0                                    //   [in]                ULONG             dwFlags
+        ciphertext.size(),        //   [in]                ULONG             cbOutput, 
+        
+        &bytes_copied,            //   [out]               ULONG             *pcbResult,
+        
+        0                         //   [in]                ULONG             dwFlags
     );
 
     if (status != STATUS_SUCCESS)
@@ -807,11 +819,11 @@ auto encrypt_galois(string_view plaintext,
 }
 
 auto decrypt_galois(
-    ByteArray ciphertext,
-    string_view password,
-    ByteArray nonce,
-    ByteArray tag,
-    string_view associated_data
+    ByteArray ciphertext, // C
+    string_view password, // K
+    ByteArray nonce, // IV
+    ByteArray tag, // T
+    string_view associated_data // A
 ) -> tuple<Plaintext, Error>
 {
     NTSTATUS status = 0;
