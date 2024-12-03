@@ -941,22 +941,17 @@ auto decrypt_galois(
     auto plaintext = ByteArray(ciphertext.size(), 0);
 
     ULONG bytes_copied = 0;
-    status = BCryptEncrypt(
-        key_handle,               //   [in, out]           BCRYPT_KEY_HANDLE hKey,
-
-        (PUCHAR)ciphertext.data(), //   [in]                PUCHAR            pbInput,
-        (ULONG)ciphertext.size(),  //   [in]                ULONG             cbInput,
-
-        &authInfo,                //   [in, optional]      VOID              *pPaddin
-
-        nullptr,                  //   [in, out, optional] PUCHAR            pbIV,
-        0,                        //   [in]                ULONG             cbIV,
-
-        plaintext.data(),         //   [out, optional]     PUCHAR            pbOutput
-        plaintext.size(),         //   [in]                ULONG             cbOutput
-
-        &bytes_copied,            //   [out]               ULONG             *pcbResu
-        0                         //   [in]                ULONG             dwFlags
+    status = BCryptDecrypt(
+        key_handle,                 // [in, out]           BCRYPT_KEY_HANDLE hKey,
+        (PUCHAR)ciphertext.data(),  // [in]                PUCHAR            pbInput,
+        (ULONG)ciphertext.size(),   // [in]                ULONG             cbInput,
+        &authInfo,                  // [in, optional]      VOID              *pPaddingInfo,
+        nullptr,                    // [in, out, optional] PUCHAR            pbIV,
+        0,                          // [in]                ULONG             cbIV,
+        plaintext.data(),           // [out, optional]     PUCHAR            pbOutput,
+        plaintext.size(),           // [in]                ULONG             cbOutput,
+        &bytes_copied,              // [out]               ULONG             *pcbResult,
+        0                           // [in]                ULONG             dwFlags
     );
 
     if (status != STATUS_SUCCESS)

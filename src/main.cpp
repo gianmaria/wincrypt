@@ -135,6 +135,8 @@ int main()
                 std::cout << std::hex << static_cast<int>(t) << " ";
             }
             std::cout << std::endl;
+            
+            tag[0] = 0;
 
             auto [plaintext, err_d] = AES::decrypt_galois(ciphertext, key, 
                                                           nonce, tag, associated_data);
@@ -142,7 +144,7 @@ int main()
             if (err_d)
             {
                 // error handling here
-                std::println("ERROR: '{}', code: {}", err_d.str, err_d.code);
+                std::println("ERROR: '{}', code: 0x{:04x}", err_d.str, (uint32_t)err_d.code);
                 return 1;
             }
 
